@@ -275,7 +275,9 @@ Objetivo: que lanzar tareas manuales sea seguro y facil para operadores.
 
 ## Prioridad 6 - Pruebas
 
-Objetivo: cubrir los errores que mas probablemente rompen operacion.
+Objetivo: cubrir los errores que mas probablemente rompen operacion sin obligar a usar NAS, SCC ni datos reales pesados en cada cambio.
+
+La estrategia debe ir por capas. Los tests ligeros deben poder ejecutarse antes de cada commit. Docker debe quedar para una prueba basica de integracion. Los datos reales y casos pesados deben reservarse para validacion operativa o releases.
 
 ### TODO
 
@@ -289,12 +291,123 @@ Objetivo: cubrir los errores que mas probablemente rompen operacion.
 - [ ] Anadir comprobacion de tipos con `mypy` o `pyright` si no bloquea el flujo actual.
 - [ ] Anadir lint/format con `ruff`.
 
+### Capa 1 - Tests Rapidos Sin Docker
+
+Estos tests deben ejecutarse en segundos y no deben depender de Redis, Docker, NAS, SCC ni datos grandes.
+
+- [ ] `tests/test_imports.py`
+  - importa `app`
+  - importa `api.main`
+  - importa `tasks.misc`
+  - importa `tasks.lidar`
+  - verifica que no hay errores de importacion con la configuracion minima
+- [ ] `tests/test_lidar_backend.py`
+  - verifica que existe `worker/lidar_backend.py`
+  - verifica que expone `LIDAR_BACKEND`
+  - verifica que expone `to_measurements`, `quicklook_from_file`, `LIDAR_INFO`, `LidarName`
+  - documenta si esta usando `lidarpy` o fallback `gfatpy`
+- [ ] `tests/test_api_models.py`
+  - valida `TaskQueueInput` con argumentos posicionales
+  - valida `TaskQueueInput` con `kwargs`
+  - comprueba defaults de `args` y `kwargs`
+- [ ] `tests/test_registered_tasks.py`
+  - arranca la app Celery en modo importacion
+  - verifica que `tasks.misc.test_sum` esta registrado
+  - verifica que las tareas LIDAR esperadas estan registradas
+- [ ] `tests/test_schedule_static.py`
+  - importa `scheduled.all_scheduled`
+  - verifica que todas las entradas tienen `task`, `schedule` y `args`
+  - verifica que cada `task` corresponde a una tarea registrada
+  - verifica que no hay argumentos claramente incompatibles con las firmas
+- [ ] `tests/test_dates.py`
+  - cubre el calculo de ayer con cambio de mes y cambio de ano
+  - evita `date.replace(day=day-1)`
+- [ ] `tests/test_intervals.py`
+  - valida intervalos `HH:MM` y `HH:MM:SS`
+  - valida errores para intervalos mal formados
+
+### Capa 2 - Prueba Basica Con Docker Sin Datos Reales
+
+Esta capa comprueba que la infraestructura minima funciona. No debe montar NAS ni llamar a SCC.
+
+- [ ] Crear `docker-compose.test.yml` o documentar perfil de test.
+- [ ] Levantar Redis, worker y API.
+- [ ] Comprobar `GET /` devuelve la API.
+- [ ] Comprobar `GET /registered_tasks` devuelve tareas Celery.
+- [ ] Encolar `tasks.misc.test_sum` con `POST /task_queue`.
+- [ ] Consultar `GET /task_queue/{task_id}` hasta obtener `SUCCESS`.
+- [ ] Verificar que el resultado es `15` para entrada `[5, 10]`.
+- [ ] Parar servicios y limpiar contenedores de test.
+
+Resultado esperado: confirmar API + Redis + Celery + worker sin tocar datos cientificos.
+
+### Capa 3 - Tests Con Fixtures Pequenas
+
+Estos tests usan muestras reducidas y controladas. No deben depender de mounts NAS reales.
+
+- [ ] Decidir si las fixtures pequenas viven en `gfat-worker` o se reutilizan desde `atmolidarpy`.
+- [ ] Crear estructura local de prueba:
+  - `tests/data/RAW/UGR/alhambra/YYYY/MM/DD/...`
+  - `tests/data/PRODUCTS/UGR/...`
+- [ ] Probar `task_nc_convert` con una fecha ALHAMBRA conocida.
+- [ ] Verificar que se crean NetCDF en la ruta esperada.
+- [ ] Probar `task_quicklook` usando un NetCDF fixture.
+- [ ] Verificar que se crea el PNG esperado.
+- [ ] Probar comportamiento cuando no hay datos de la fecha solicitada.
+- [ ] Probar comportamiento cuando existe la fecha anterior.
+
+Resultado esperado: validar la logica LIDAR basica con datos pequenos antes de usar datos reales.
+
+### Capa 4 - Pruebas SCC Aisladas
+
+Estas pruebas no deben subir ni descargar datos reales salvo que se activen explicitamente.
+
+- [ ] Extraer una capa para operaciones SCC que pueda mockearse.
+- [ ] Probar que `task_send_to_scc`:
+  - localiza ficheros `.nc`
+  - evita subir si el measurement id ya existe
+  - reporta `uploaded`, `found` o `error`
+- [ ] Probar que `task_download_from_scc`:
+  - crea directorio `products`
+  - maneja timeout/reintentos
+  - no falla si no hay ficheros
+- [ ] Probar que `task_plot_scc`:
+  - detecta ausencia de productos
+  - crea directorio `plots`
+  - maneja ZIP invalido sin tumbar toda la tarea
+
+Resultado esperado: validar decisiones y errores sin depender del servidor SCC real.
+
+### Capa 5 - Casos Practicos Reales/Pesados
+
+Estos casos no deben ejecutarse en cada commit. Deben quedar documentados como validacion manual, de release o de mantenimiento.
+
+- [ ] Definir un caso real ALHAMBRA de referencia con fecha concreta.
+- [ ] Documentar datos de entrada esperados en NAS.
+- [ ] Ejecutar conversion NetCDF real.
+- [ ] Ejecutar quicklook real.
+- [ ] Ejecutar conversion SCC para un intervalo controlado.
+- [ ] Subir a SCC solo si se ha confirmado que es un entorno valido.
+- [ ] Descargar productos SCC.
+- [ ] Plotear productos SCC.
+- [ ] Comparar productos generados con una referencia conocida:
+  - nombres de fichero
+  - numero de ficheros
+  - dimensiones principales NetCDF
+  - quicklook creado
+  - productos SCC descargados
+- [ ] Guardar resultado de la validacion en un documento de operacion o release notes.
+
+Resultado esperado: confirmar que el pipeline completo funciona con infraestructura real antes de hacer una release o cambio operativo importante.
+
 ### Orden Sugerido
 
 1. Pruebas de agenda Celery.
 2. Pruebas de validacion de argumentos.
 3. Pruebas de tareas sin tocar NAS ni SCC.
 4. Pruebas de integracion opcionales con datos controlados.
+5. Prueba basica Docker API + Redis + Celery.
+6. Validacion manual con datos reales y SCC.
 
 ## Prioridad 7 - Seguridad y Gestion de Secretos
 
