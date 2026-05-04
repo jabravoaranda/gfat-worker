@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: "redis:latest"
+    env_file: .env
+    ports: 
+      - 6379:6379
+  worker:
+    depends_on:
+      - redis
+    build: ./worker
+    env_file: .env
+    ports:
+      - 8000:8000
+    volumes:
+      - ${NAS_URL_RAW_DIR}:/mnt/RAW
+      - ${NAS_URL_PRODUCTS_DIR}:/mnt/PRODUCTS
+  flower:
+    depends_on:
+      - redis
+      - worker
+    image: mher/flower
+    env_file: .env
+    ports:
+      - 5555:5555
+
+# volumes:
+#   raw:
+#     driver_opts:
+#       type: "cifs"
+#       o: "username=${NAS_USER},password=${NAS_PASSWORD},uid=1021,gid=100,vers=3.0"
+#       device: "${NAS_URL_RAW}"
+
+#   products:
+#     name: products
+#     driver_opts:
+#       type: "cifs"
+#       o: "username=${NAS_USER},password=${NAS_PASSWORD},uid=1021,gid=100,vers=3.0"
+#       device: "${NAS_URL_PRODUCTS}"
+
+    

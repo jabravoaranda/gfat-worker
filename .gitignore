@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pytest_tmp/
+celerybeat-schedule
+celerybeat.pid
+
+.env*
+
+RAW/**/*.*
+PRODUCTS/**/*.*
+
+info_scc_user.yml

@@ -1,0 +1,22 @@
+server_settings:
+  basic_credentials:
+    - 'scc_user'
+    - '<password>'
+  website_credentials:
+    - '<user>'
+    - '<password>'
+  base_url: 'https://scc.imaa.cnr.it/'
+  output_dir: null
+
+email:
+  sender:
+    server: '<smtp>'
+    port: 587
+    sender_email: '<email>'
+    password: '<password>'
+  receiver:
+    - '<email_1>'
+    - '<email_2>'
+    - '<email_3>'
+
+MAX_EXEC_TIME: 3600
