@@ -1,0 +1,131 @@
+name: Worker CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    name: Tests and Docker smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: uv sync --locked --dev
+
+      - name: Run fast tests
+        run: uv run pytest -q
+
+      - name: Prepare smoke-test directories
+        run: |
+          mkdir -p ../lidarpy/tests/data/RAW
+          mkdir -p tmp/smoke-products
+
+      - name: Build and start worker stack
+        env:
+          API_PORT: "18000"
+          REDIS_PORT: "6380"
+          FLOWER_PORT: "5555"
+        run: docker compose -p gfat-worker-ci -f docker-compose.test.yml up --build -d
+
+      - name: Run API and Celery smoke tests
+        env:
+          API_URL: "http://localhost:18000"
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          API_URL = os.environ["API_URL"]
+
+          def request(method, path, payload=None, timeout=10):
+              data = None
+              headers = {}
+              if payload is not None:
+                  data = json.dumps(payload).encode()
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(
+                  f"{API_URL}{path}",
+                  data=data,
+                  headers=headers,
+                  method=method,
+              )
+              with urllib.request.urlopen(req, timeout=timeout) as response:
+                  return json.loads(response.read().decode())
+
+          deadline = time.time() + 120
+          while True:
+              try:
+                  root = request("GET", "/")
+                  assert root["name"] == "API Worker"
+                  break
+              except Exception:
+                  if time.time() > deadline:
+                      raise
+                  time.sleep(2)
+
+          registered = request("GET", "/registered_tasks")
+          for task_name in ("tasks.misc.test_sum", "tasks.misc.lidar_backend_status"):
+              assert task_name in registered["tasks"], registered
+
+          def queue_and_wait(task_name, args=None, kwargs=None):
+              queued = request(
+                  "POST",
+                  "/task_queue",
+                  {
+                      "task_name": task_name,
+                      "args": args or [],
+                      "kwargs": kwargs or {},
+                  },
+              )
+              task_id = queued["id"]
+              deadline = time.time() + 90
+              while time.time() < deadline:
+                  details = request("GET", f"/task_queue/{task_id}")
+                  if details["state"] == "SUCCESS":
+                      return details["result"]
+                  if details["state"] == "FAILURE":
+                      raise AssertionError(details)
+                  time.sleep(2)
+              raise TimeoutError(f"{task_name} did not finish: {task_id}")
+
+          assert queue_and_wait("tasks.misc.test_sum", [5, 10]) == 15
+          backend = queue_and_wait("tasks.misc.lidar_backend_status")
+          assert backend["backend"] == "lidarpy", backend
+          assert backend["has_alhambra"] is True, backend
+          print("Docker smoke test passed.")
+          PY
+
+      - name: Show worker logs on failure
+        if: failure()
+        env:
+          API_PORT: "18000"
+          REDIS_PORT: "6380"
+          FLOWER_PORT: "5555"
+        run: docker compose -p gfat-worker-ci -f docker-compose.test.yml logs --no-color
+
+      - name: Stop worker stack
+        if: always()
+        env:
+          API_PORT: "18000"
+          REDIS_PORT: "6380"
+          FLOWER_PORT: "5555"
+        run: docker compose -p gfat-worker-ci -f docker-compose.test.yml down -v --remove-orphans
