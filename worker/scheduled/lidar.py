@@ -1,8 +1,15 @@
-from datetime import date
+from datetime import date, timedelta
 
 from celery.schedules import crontab
 
-yesterday = date.today().replace(day=date.today().day - 1).strftime("%Y-%m-%d")
+
+def yesterday_str(reference_date: date | None = None) -> str:
+    if reference_date is None:
+        reference_date = date.today()
+    return (reference_date - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+yesterday = yesterday_str()
 
 scheduled = {
     'scheduled_nc_convert': { # Convert ALHAMBRA raw data to netCDF
@@ -112,87 +119,96 @@ scheduled = {
         'args': ('alhambra', 781, "22:30:00", "23:30:00", 20.0, 1013.25, yesterday),
     },     
 
-    'scheduled_send_to_scc_781': { # Send 781 scc-config netCDF to SCC
+    'scheduled_send_to_scc_781_yesterday': { # Send 781 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='*/2', minute='0'),
         'args': ('alhambra', 781, yesterday),
     },
-    'scheduled_send_to_scc_783': { # Send 783 scc-config netCDF to SCC
+    'scheduled_send_to_scc_783_yesterday': { # Send 783 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='*/2', minute='0'),
         'args': ('alhambra', 783, yesterday),
     },
 
-    'scheduled_send_to_scc_781': { # Send 781 scc-config netCDF to SCC
+    'scheduled_send_to_scc_781_today': { # Send 781 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='1-23/2', minute='0'),
         'args': ('alhambra', 781),
     },
-    'scheduled_send_to_scc_783': { # Send 783 scc-config netCDF to SCC
+    'scheduled_send_to_scc_783_today': { # Send 783 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='1-23/2', minute='0'),
         'args': ('alhambra', 783),
     },    
 
-    'scheduled_download_from_scc': { # Download SCC data
+    'scheduled_download_from_scc_781_today': { # Download SCC data
         'task': 'tasks.lidar.task_download_from_scc',
         'schedule': crontab(hour='*/2', minute='45'),
-        'args': ('alhambra'),
+        'args': ('alhambra', 781),
     },
-
-    'scheduled_download_from_scc': { # Download SCC data
+    'scheduled_download_from_scc_783_today': { # Download SCC data
+        'task': 'tasks.lidar.task_download_from_scc',
+        'schedule': crontab(hour='*/2', minute='45'),
+        'args': ('alhambra', 783),
+    },
+    'scheduled_download_from_scc_781_yesterday': { # Download SCC data
         'task': 'tasks.lidar.task_download_from_scc',
         'schedule': crontab(hour='1-23/2', minute='45'),
-        'args': ('alhambra',yesterday),
+        'args': ('alhambra', 781, yesterday),
+    },
+    'scheduled_download_from_scc_783_yesterday': { # Download SCC data
+        'task': 'tasks.lidar.task_download_from_scc',
+        'schedule': crontab(hour='1-23/2', minute='45'),
+        'args': ('alhambra', 783, yesterday),
     },
 
-    'scheduled_plot_scc_781': { # Plot SCC 781 data
+    'scheduled_plot_scc_781_yesterday': { # Plot SCC 781 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='*/2', minute='0'),
         'args': ('alhambra', 781, yesterday),
     },
-    'scheduled_plot_scc_783': { # Plot SCC 783 data
+    'scheduled_plot_scc_783_yesterday': { # Plot SCC 783 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='*/2', minute='0'),
         'args': ('alhambra', 783, yesterday),
     },
-    'scheduled_plot_scc_781': { # Plot SCC 781 data
+    'scheduled_plot_scc_781_today': { # Plot SCC 781 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='1-23/2', minute='0'),
         'args': ('alhambra', 781),
     },
-    'scheduled_plot_scc_783': { # Plot SCC 783 data
+    'scheduled_plot_scc_783_today': { # Plot SCC 783 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='1-23/2', minute='0'),
         'args': ('alhambra', 783),
     },
 
-    'scheduled_convert_scc_dp': { # Convert SCC DP raw data to 773 scc-config netCDF
+    'scheduled_convert_scc_dp_yesterday': { # Convert SCC DP raw data to 773 scc-config netCDF
         'task': 'tasks.lidar.task_convert_scc_dp',
         'schedule': crontab(hour='*/12', minute='0'),
         'args': ('alhambra', 773, yesterday),
     },
-    'scheduled_convert_scc_dp': { # Convert SCC DP raw data to 773 scc-config netCDF
+    'scheduled_convert_scc_dp_today': { # Convert SCC DP raw data to 773 scc-config netCDF
         'task': 'tasks.lidar.task_convert_scc_dp',
         'schedule': crontab(hour='*/12', minute='0'),
         'args': ('alhambra', 773),
     },       
-    'scheduled_send_to_scc_773': { # Send 773 scc-config netCDF to SCC
+    'scheduled_send_to_scc_773_yesterday': { # Send 773 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='*/12', minute='15'),
         'args': ('alhambra', 773, yesterday),
     },
-    'scheduled_send_to_scc_773': { # Send 773 scc-config netCDF to SCC
+    'scheduled_send_to_scc_773_today': { # Send 773 scc-config netCDF to SCC
         'task': 'tasks.lidar.task_send_to_scc',
         'schedule': crontab(hour='*/12', minute='15'),
         'args': ('alhambra', 773),
     },
-    'scheduled_plot_scc_773': { # Plot SCC 773 data
+    'scheduled_plot_scc_773_yesterday': { # Plot SCC 773 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='*/12', minute='30'),
         'args': ('alhambra', 773, yesterday),
     },  
-    'scheduled_plot_scc_773': { # Plot SCC 773 data
+    'scheduled_plot_scc_773_today': { # Plot SCC 773 data
         'task': 'tasks.lidar.task_plot_scc',
         'schedule': crontab(hour='*/12', minute='30'),
         'args': ('alhambra', 773),

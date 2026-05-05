@@ -281,11 +281,11 @@ La estrategia debe ir por capas. Los tests ligeros deben poder ejecutarse antes 
 
 ### TODO
 
-- [ ] Configurar `pytest`.
-- [ ] Anadir prueba de importacion del worker.
-- [ ] Anadir prueba de registro de tareas Celery.
-- [ ] Anadir prueba de coherencia de `beat_schedule`.
-- [ ] Anadir pruebas unitarias para parsing de fechas e intervalos.
+- [x] Configurar `pytest`.
+- [x] Anadir prueba de importacion del worker.
+- [x] Anadir prueba de registro de tareas Celery.
+- [x] Anadir prueba de coherencia de `beat_schedule`.
+- [x] Anadir pruebas unitarias para parsing de fechas e intervalos.
 - [ ] Anadir pruebas con filesystem temporal para rutas de salida.
 - [ ] Crear fixtures minimas o mocks para `gfatpy`.
 - [ ] Anadir comprobacion de tipos con `mypy` o `pyright` si no bloquea el flujo actual.
@@ -295,34 +295,34 @@ La estrategia debe ir por capas. Los tests ligeros deben poder ejecutarse antes 
 
 Estos tests deben ejecutarse en segundos y no deben depender de Redis, Docker, NAS, SCC ni datos grandes.
 
-- [ ] `tests/test_imports.py`
+- [x] `tests/test_imports.py`
   - importa `app`
   - importa `api.main`
   - importa `tasks.misc`
   - importa `tasks.lidar`
   - verifica que no hay errores de importacion con la configuracion minima
-- [ ] `tests/test_lidar_backend.py`
+- [x] `tests/test_lidar_backend.py`
   - verifica que existe `worker/lidar_backend.py`
   - verifica que expone `LIDAR_BACKEND`
   - verifica que expone `to_measurements`, `quicklook_from_file`, `LIDAR_INFO`, `LidarName`
   - documenta si esta usando `lidarpy` o fallback `gfatpy`
-- [ ] `tests/test_api_models.py`
+- [x] `tests/test_api_models.py`
   - valida `TaskQueueInput` con argumentos posicionales
   - valida `TaskQueueInput` con `kwargs`
   - comprueba defaults de `args` y `kwargs`
-- [ ] `tests/test_registered_tasks.py`
+- [x] `tests/test_registered_tasks.py`
   - arranca la app Celery en modo importacion
   - verifica que `tasks.misc.test_sum` esta registrado
   - verifica que las tareas LIDAR esperadas estan registradas
-- [ ] `tests/test_schedule_static.py`
+- [x] `tests/test_schedule_static.py`
   - importa `scheduled.all_scheduled`
   - verifica que todas las entradas tienen `task`, `schedule` y `args`
   - verifica que cada `task` corresponde a una tarea registrada
   - verifica que no hay argumentos claramente incompatibles con las firmas
-- [ ] `tests/test_dates.py`
+- [x] `tests/test_dates.py`
   - cubre el calculo de ayer con cambio de mes y cambio de ano
   - evita `date.replace(day=day-1)`
-- [ ] `tests/test_intervals.py`
+- [x] `tests/test_intervals.py`
   - valida intervalos `HH:MM` y `HH:MM:SS`
   - valida errores para intervalos mal formados
 
@@ -459,3 +459,4 @@ Ideas para crecer sin romper el nucleo operativo.
 - [x] Identificacion del flujo operativo principal.
 - [x] Creacion de hoja de ruta inicial.
 - [x] Preparacion inicial del worker para importar `lidarpy` cuando `atmolidarpy` este instalado, manteniendo fallback a `gfatpy`.
+- [x] Implementacion de tests rapidos sin Docker para imports, backend LIDAR, modelos API, tareas registradas, agenda, fechas e intervalos.

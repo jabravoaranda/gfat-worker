@@ -31,9 +31,18 @@ GFATPY_DIR = Path("/usr/local/lib/python3.10/site-packages/gfatpy")
 INFO_SCC_DIR = GFATPY_DIR / "env_files"
 
 if not INFO_SCC_DIR.exists():
-    raise ValueError(f"{INFO_SCC_DIR} not found.")
+    logger.warning(f"{INFO_SCC_DIR} not found. SCC tasks may fail until gfatpy env files are available.")
 
 logger.info(f"Using {LIDAR_BACKEND} as lidar processing backend.")
+
+
+def parse_time_interval(ini_interval: str, end_interval: str) -> Tuple[time, time]:
+    def parse_time_value(value: str) -> time:
+        if len(value.split(":")) == 2:
+            value = f"{value}:00"
+        return datetime.strptime(value, "%H:%M:%S").time()
+
+    return parse_time_value(ini_interval), parse_time_value(end_interval)
 
 
 @shared_task
@@ -218,12 +227,7 @@ def task_convert_scc(
     raw_dir: Path = RAW_DIR,
     products_dir: Path = PRODUCTS_DIR,
 ):
-    if len(ini_interval.split(':')) == 2:
-        ini_interval = f"{ini_interval}:00"
-        end_interval = f"{end_interval}:00"
-
-    interval = (datetime.strptime(ini_interval, "%H:%M:%S").time(),
-                datetime.strptime(end_interval, "%H:%M:%S").time())
+    interval = parse_time_interval(ini_interval, end_interval)
     
     def convert_scc(
         lidar_name: str,
