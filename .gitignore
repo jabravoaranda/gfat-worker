@@ -69,6 +69,7 @@ venv.bak/
 # Local data and secrets
 RAW/**/*.*
 PRODUCTS/**/*.*
+tmp/
 info_scc_user.yml
 
 # IDE and tool caches

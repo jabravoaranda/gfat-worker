@@ -10,7 +10,20 @@ services:
     build: ./worker
     environment:
       BROKER_URL: redis://redis:6379/0
+      CELERY_BEAT_ENABLED: "false"
       PYTHONUNBUFFERED: "1"
+    command: ./start.sh
     ports:
       - "18000:8000"
+    volumes:
+      - ../lidarpy/tests/data/RAW:/mnt/RAW/UGR:ro
+      - ./tmp/smoke-products:/mnt/PRODUCTS/UGR
 
+  flower:
+    depends_on:
+      - redis
+      - worker
+    image: mher/flower
+    command: celery --broker=redis://redis:6379/0 flower
+    ports:
+      - "5555:5555"

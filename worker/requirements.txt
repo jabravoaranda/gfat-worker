@@ -1,4 +1,4 @@
-scipy>=1.13.1,<2
-# gfatpy==0.9.0
 celery[redis]==5.4.0
 fastapi[all]==0.112.1
+loguru>=0.7,<1
+atmolidarpy==0.1.0

@@ -6,6 +6,7 @@ from app import app as celery_app
 def test_expected_tasks_are_registered():
     expected_tasks = {
         "tasks.misc.test_sum",
+        "tasks.misc.lidar_backend_status",
         "tasks.lidar.task_nc_convert",
         "tasks.lidar.task_quicklook",
         "tasks.lidar.task_convert_scc",
@@ -15,4 +16,3 @@ def test_expected_tasks_are_registered():
     }
 
     assert expected_tasks.issubset(set(celery_app.tasks))
-

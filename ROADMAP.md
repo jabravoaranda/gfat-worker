@@ -166,7 +166,7 @@ Imports actuales en `gfat-worker` que ya tienen equivalente aparente en `lidarpy
 - `gfatpy.utils.io.find_nearest_filepath` -> `lidarpy.general_utils.io.find_nearest_filepath`
 - `gfatpy.utils.io.read_yaml` -> `lidarpy.general_utils.io.read_yaml`
 
-Imports actuales que requieren decision antes de migrar:
+Imports antiguos de `gfatpy` que ya no deben volver al runtime del worker:
 
 - `gfatpy.GFATPY_DIR`
 - `gfatpy.lidar.scc.scc_access`
@@ -183,13 +183,13 @@ En la inspeccion inicial de `lidarpy` no se ha visto un paquete `lidarpy.scc`. P
 - [ ] Anadir `atmolidarpy` como dependencia en el worker:
   - desarrollo: `lidarpy @ git+ssh://git@github.com/jabravoaranda/lidarpy.git@develop`
   - produccion: `atmolidarpy==0.1.x` cuando este publicado en PyPI
-- [ ] Subir el contenedor base de `gfat-worker` a Python 3.11 si `lidarpy` mantiene `requires-python = ">=3.11.11,<3.12"`.
+- [x] Subir el contenedor base de `gfat-worker` a Python 3.11 y retirar `gfatpy` del runtime.
 - [ ] Migrar primero `task_nc_convert` y `task_quicklook`.
 - [ ] Crear tests o scripts de verificacion con una fecha ALHAMBRA controlada para comparar outputs `gfatpy` vs `lidarpy`.
-- [ ] Mantener temporalmente los imports SCC desde `gfatpy` si `lidarpy` no incluye todavia SCC.
+- [x] Retirar imports SCC desde `gfatpy`; las tareas SCC quedan pendientes de un backend nuevo y fallan con error explicito si se ejecutan.
 - [x] Extraer una capa adaptadora `worker/lidar_backend.py` para concentrar imports y evitar cambios dispersos en tareas Celery.
-- [ ] Una vez validado, retirar imports directos `gfatpy.lidar.*` del worker.
-- [ ] Eliminar rutas hardcodeadas a `/usr/local/lib/python3.10/site-packages/gfatpy`.
+- [x] Una vez validado, retirar imports directos `gfatpy.lidar.*` del worker.
+- [x] Eliminar rutas hardcodeadas a `/usr/local/lib/python3.10/site-packages/gfatpy`.
 
 ### Preparacion de `lidarpy` para PyPI
 
@@ -389,7 +389,7 @@ Estos casos no deben ejecutarse en cada commit. Deben quedar documentados como v
 - [ ] Documentar datos de entrada esperados en NAS.
 - [ ] Ejecutar conversion NetCDF real.
 - [ ] Ejecutar quicklook real.
-- [ ] Ejecutar conversion SCC para un intervalo controlado.
+- [x] Ejecutar conversion SCC para un intervalo controlado.
 - [ ] Subir a SCC solo si se ha confirmado que es un entorno valido.
 - [ ] Descargar productos SCC.
 - [ ] Plotear productos SCC.
@@ -464,3 +464,6 @@ Ideas para crecer sin romper el nucleo operativo.
 - [x] Preparacion inicial del worker para importar `lidarpy` cuando `atmolidarpy` este instalado, manteniendo fallback a `gfatpy`.
 - [x] Implementacion de tests rapidos sin Docker para imports, backend LIDAR, modelos API, tareas registradas, agenda, fechas e intervalos.
 - [x] Automatizacion de prueba basica Docker API + Redis + Celery sin NAS ni SCC.
+- [x] Imagen Docker de test con `atmolidarpy==0.1.0` preinstalado para evitar reinstalar lidarpy en cada arranque.
+- [x] Validacion manual real de `tasks.lidar.task_convert_scc` con fixtures RAW de `atmolidarpy`: ALHAMBRA `2023-08-30`, SCC `781`, intervalo `03:15-03:45`, salida `20230830gra0315.nc`.
+- [x] Correccion de API para preservar enteros en argumentos y serializar errores de Celery como JSON.

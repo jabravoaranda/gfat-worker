@@ -1,5 +1,6 @@
 from celery import shared_task
 
+import os
 from time import sleep
 from pathlib import Path
 from typing import Any, Tuple
@@ -19,19 +20,44 @@ from lidar_backend import (
     read_yaml,
     to_measurements,
 )
-from gfatpy import GFATPY_DIR
-from gfatpy.lidar.scc import scc_access
-from gfatpy.lidar.scc.plot.scc_zip import SCC_zipfile
-from gfatpy.lidar.scc.transfer import check_measurement_id_in_scc
-from gfatpy.lidar.scc.licel2scc import licel2scc, licel2scc_depol
+
+
+try:
+    import lidarpy.scc as lidarpy_scc
+    from lidarpy.scc import scc_access
+    from lidarpy.scc.plot.scc_zip import SCC_zipfile
+    from lidarpy.scc.transfer import check_measurement_id_in_scc
+    from lidarpy.scc.licel2scc import licel2scc, licel2scc_depol
+
+    SCC_CONFIG_DIR = Path(lidarpy_scc.__file__).parent / "scc_configFiles"
+except ImportError:
+    class _MissingSccBackend:
+        def __getattr__(self, name: str):
+            raise RuntimeError(
+                "SCC tasks require 'atmolidarpy' with the import package "
+                "'lidarpy.scc'."
+            )
+
+    def check_measurement_id_in_scc(*args, **kwargs):
+        raise RuntimeError(
+            "SCC tasks require 'atmolidarpy' with the import package 'lidarpy.scc'."
+        )
+
+    class SCC_zipfile:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError(
+                "SCC plotting requires 'atmolidarpy' with the import package "
+                "'lidarpy.scc'."
+            )
+
+    scc_access = _MissingSccBackend()
+    licel2scc = _MissingSccBackend()
+    licel2scc_depol = _MissingSccBackend()
+    SCC_CONFIG_DIR = Path("/usr/src/app/scc_configFiles")
 
 RAW_DIR = Path("/mnt/RAW/UGR")
 PRODUCTS_DIR = Path("/mnt/PRODUCTS/UGR")
-GFATPY_DIR = Path("/usr/local/lib/python3.10/site-packages/gfatpy")
-INFO_SCC_DIR = GFATPY_DIR / "env_files"
-
-if not INFO_SCC_DIR.exists():
-    logger.warning(f"{INFO_SCC_DIR} not found. SCC tasks may fail until gfatpy env files are available.")
+SCC_CONFIG_DIR = Path(os.environ.get("SCC_CONFIG_DIR", SCC_CONFIG_DIR))
 
 logger.info(f"Using {LIDAR_BACKEND} as lidar processing backend.")
 
@@ -43,6 +69,43 @@ def parse_time_interval(ini_interval: str, end_interval: str) -> Tuple[time, tim
         return datetime.strptime(value, "%H:%M:%S").time()
 
     return parse_time_value(ini_interval), parse_time_value(end_interval)
+
+
+def get_measurement_files_within_period(
+    measurement: Measurement, period: tuple[datetime, datetime]
+) -> list[Path]:
+    """Return extracted Licel files from a measurement within a datetime period."""
+    if hasattr(measurement, "get_filenames_within_datetime_slice"):
+        filenames = measurement.get_filenames_within_datetime_slice(
+            slice(period[0], period[1])
+        )
+        if not filenames:
+            return []
+        filepaths = measurement.get_filepaths(pattern_or_list=filenames)
+    else:
+        filepaths = measurement.get_filepaths(within_period=period)
+
+    if not filepaths:
+        return []
+    return sorted(filepaths)
+
+
+def get_measurement_files_pattern(measurement: Measurement) -> str:
+    """Extract a measurement and return a glob pattern accepted by licel2scc."""
+    filepaths = measurement.get_filepaths()
+    if not filepaths:
+        raise FileNotFoundError(f"No files found in {measurement.path}.")
+
+    filepaths = sorted(filepaths)
+    if len(filepaths) == 1:
+        return filepaths[0].as_posix()
+
+    parents = {file_.parent for file_ in filepaths}
+    if len(parents) == 1:
+        return (parents.pop() / "*.*").as_posix()
+
+    common_dir = Path(os.path.commonpath([file_.as_posix() for file_ in filepaths]))
+    return (common_dir / "*" / "*.*").as_posix()
 
 
 @shared_task
@@ -255,6 +318,7 @@ def task_convert_scc(
             target_date = datetime.now().date()
         elif isinstance(target_date, str):
             target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        scc_id = int(scc_id)
 
         logger.info(
             f"Launching SCC conversion for {lidar_name} on {target_date}.")
@@ -276,7 +340,7 @@ def task_convert_scc(
 
         scc_config_dir = Path(
             kwargs.get(
-                "scc_config_dir", GFATPY_DIR / "lidar" / "scc" / "scc_configFiles"
+                "scc_config_dir", SCC_CONFIG_DIR
             )
         )
         lidar_nick = LIDAR_INFO["metadata"]["name2nick"][lidar_name]
@@ -348,9 +412,9 @@ def task_convert_scc(
             target_date, interval[0]), datetime.combine(target_date, interval[1]))
 
         for measurement in measurements:
-            file_set = set()
-            file_set = measurement.get_filepaths(
-                within_period=period_tuple)
+            file_set = get_measurement_files_within_period(
+                measurement, period_tuple
+            )
 
             if len(file_set) < 30:
                 logger.warning(
@@ -392,13 +456,7 @@ def task_convert_scc(
                     continue
 
             if measurement.dc.is_zip:
-                if measurement.dc.unzipped_path is not None:
-                    dc_files_patt = (
-                        measurement.dc.unzipped_path / "**" / "*.[0-9]*"
-                    ).as_posix()
-                else:
-                    raise ValueError(
-                        f"Error extracting {measurement.dc.path}.")
+                dc_files_patt = get_measurement_files_pattern(measurement.dc)
             else:
                 dc_files_patt = measurement.dc.path.as_posix()
 
@@ -430,7 +488,7 @@ def task_convert_scc(
         raw_dir=raw_dir,
         products_dir=products_dir,
         **{
-            "scc_config_dir": "/usr/local/lib/python3.10/site-packages/gfatpy/lidar/scc/scc_configFiles"
+            "scc_config_dir": SCC_CONFIG_DIR
         },
     )
     return message
@@ -469,12 +527,12 @@ def task_convert_scc_dp(
             target_date = datetime.now().date()
         elif isinstance(target_date, str):
             target_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+        scc_id = int(scc_id)
         year, month, day = target_date.year, target_date.month, target_date.day
         date_str = target_date.strftime("%Y%m%d")
 
         scc_config_dir = Path(
-            kwargs.get("scc_config_dir", GFATPY_DIR /
-                       "lidar" / "scc" / "scc_configFiles")
+            kwargs.get("scc_config_dir", SCC_CONFIG_DIR)
         )
         scc_config_fn = find_nearest_filepath(
             scc_config_dir,
@@ -605,7 +663,7 @@ def task_convert_scc_dp(
         raw_dir=raw_dir,
         products_dir=products_dir,
         **{
-            "scc_config_dir": "/usr/local/lib/python3.10/site-packages/gfatpy/lidar/scc/scc_configFiles"
+            "scc_config_dir": SCC_CONFIG_DIR
         },
     )
     return message

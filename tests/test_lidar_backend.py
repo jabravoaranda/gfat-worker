@@ -4,7 +4,7 @@ import lidar_backend
 
 
 def test_lidar_backend_exposes_required_symbols():
-    assert lidar_backend.LIDAR_BACKEND in {"lidarpy", "gfatpy"}
+    assert lidar_backend.LIDAR_BACKEND in {"lidarpy", "missing"}
 
     for symbol in [
         "LIDAR_INFO",
@@ -13,4 +13,3 @@ def test_lidar_backend_exposes_required_symbols():
         "quicklook_from_file",
     ]:
         assert hasattr(lidar_backend, symbol)
-

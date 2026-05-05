@@ -14,6 +14,15 @@ from api.models import (
 app = FastAPI()
 
 
+def serialize_task_result(result):
+    if isinstance(result, BaseException):
+        return {
+            "error_type": result.__class__.__name__,
+            "error": str(result),
+        }
+    return result
+
+
 @app.get("/")
 def read_root() -> dict[str, str]:
     return {
@@ -31,7 +40,9 @@ def get_registered_tasks() -> RegisteredTasksResponse:
 def task_queue_details(task_id: str) -> TaskQueueDetailsResponse:
     task = AsyncResult(task_id, app=celery_app)
     return TaskQueueDetailsResponse(
-        id=cast(str, task.task_id), state=task.state, result=task.result
+        id=cast(str, task.task_id),
+        state=task.state,
+        result=serialize_task_result(task.result),
     )
 
 

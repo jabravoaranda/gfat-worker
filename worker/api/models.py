@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -13,13 +15,13 @@ class TaskQueueInput(BaseModel):
         description="The name of the task to queue",
         examples=["tasks.misc.test_sum"],
     )
-    args: list[float | str] = Field(
+    args: list[Any] = Field(
         default_factory=list,
         title="Task arguments",
         description="The arguments to pass to the task",
         examples=[[5, 10]],
     )
-    kwargs: dict[str, float | str] = Field(
+    kwargs: dict[str, Any] = Field(
         default_factory=dict,
         title="Task keyword arguments",
         description="The keyword arguments to pass to the task",
@@ -34,7 +36,7 @@ class TaskQueueResponse(BaseModel):
 class TaskQueueDetailsResponse(BaseModel):
     id: str = Field(title="Task ID", description="The ID of the task")
     state: str = Field(title="Task state", description="The state of the task")
-    result: float | str | None = Field(
+    result: Any = Field(
         title="Task result", description="The result of the task"
     )
 
