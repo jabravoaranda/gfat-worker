@@ -15,3 +15,15 @@ Then build and run the services with:
 ```bash
 docker compose up --build
 ```
+
+## Tests
+
+Run the fast no-Docker test suite with `uv`:
+
+```bash
+uv run pytest -q
+```
+
+These tests validate imports, API models, task registration, schedule structure,
+date handling, and interval parsing without starting Redis, Celery workers,
+Docker, NAS mounts, or SCC connections.

@@ -281,7 +281,7 @@ La estrategia debe ir por capas. Los tests ligeros deben poder ejecutarse antes 
 
 ### TODO
 
-- [x] Configurar `pytest`.
+- [x] Configurar `pytest` mediante `uv` y `pyproject.toml`.
 - [x] Anadir prueba de importacion del worker.
 - [x] Anadir prueba de registro de tareas Celery.
 - [x] Anadir prueba de coherencia de `beat_schedule`.
