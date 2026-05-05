@@ -1,0 +1,16 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+  worker:
+    depends_on:
+      - redis
+    build: ./worker
+    environment:
+      BROKER_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "18000:8000"
+

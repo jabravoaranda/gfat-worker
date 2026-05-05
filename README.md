@@ -27,3 +27,13 @@ uv run pytest -q
 These tests validate imports, API models, task registration, schedule structure,
 date handling, and interval parsing without starting Redis, Celery workers,
 Docker, NAS mounts, or SCC connections.
+
+Run the Docker smoke test with:
+
+```powershell
+.\scripts\smoke_docker.ps1
+```
+
+This starts a test-only Redis and worker/API stack, queues
+`tasks.misc.test_sum`, verifies the result, and then removes the test
+containers. It does not mount NAS paths or contact SCC.

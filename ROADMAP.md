@@ -330,7 +330,8 @@ Estos tests deben ejecutarse en segundos y no deben depender de Redis, Docker, N
 
 Esta capa comprueba que la infraestructura minima funciona. No debe montar NAS ni llamar a SCC.
 
-- [ ] Crear `docker-compose.test.yml` o documentar perfil de test.
+- [x] Crear `docker-compose.test.yml` o documentar perfil de test.
+- [x] Crear script `scripts/smoke_docker.ps1` para automatizar la prueba.
 - [ ] Levantar Redis, worker y API.
 - [ ] Comprobar `GET /` devuelve la API.
 - [ ] Comprobar `GET /registered_tasks` devuelve tareas Celery.
@@ -338,6 +339,8 @@ Esta capa comprueba que la infraestructura minima funciona. No debe montar NAS n
 - [ ] Consultar `GET /task_queue/{task_id}` hasta obtener `SUCCESS`.
 - [ ] Verificar que el resultado es `15` para entrada `[5, 10]`.
 - [ ] Parar servicios y limpiar contenedores de test.
+
+Nota: la automatizacion esta implementada, pero la ejecucion local queda pendiente hasta arrancar Docker Desktop.
 
 Resultado esperado: confirmar API + Redis + Celery + worker sin tocar datos cientificos.
 
@@ -460,3 +463,4 @@ Ideas para crecer sin romper el nucleo operativo.
 - [x] Creacion de hoja de ruta inicial.
 - [x] Preparacion inicial del worker para importar `lidarpy` cuando `atmolidarpy` este instalado, manteniendo fallback a `gfatpy`.
 - [x] Implementacion de tests rapidos sin Docker para imports, backend LIDAR, modelos API, tareas registradas, agenda, fechas e intervalos.
+- [x] Automatizacion de prueba basica Docker API + Redis + Celery sin NAS ni SCC.
