@@ -55,9 +55,12 @@ except ImportError:
     licel2scc_depol = _MissingSccBackend()
     SCC_CONFIG_DIR = Path("/usr/src/app/scc_configFiles")
 
-RAW_DIR = Path("/mnt/RAW/UGR")
-PRODUCTS_DIR = Path("/mnt/PRODUCTS/UGR")
+RAW_DIR = Path(os.environ.get("RAW_DIR", "/mnt/RAW/UGR"))
+PRODUCTS_DIR = Path(os.environ.get("PRODUCTS_DIR", "/mnt/PRODUCTS/UGR"))
 SCC_CONFIG_DIR = Path(os.environ.get("SCC_CONFIG_DIR", SCC_CONFIG_DIR))
+INFO_SCC_CONFIG_PATH = Path(
+    os.environ.get("INFO_SCC_CONFIG_PATH", "/usr/src/app/info_scc_user.yml")
+)
 
 logger.info(f"Using {LIDAR_BACKEND} as lidar processing backend.")
 
@@ -768,7 +771,7 @@ def task_send_to_scc(
     message = send_to_scc(
         lidar_name=lidar_name,
         scc_id=scc_id,
-        info_scc_config_path=Path("/usr/src/app/info_scc_user.yml"),
+        info_scc_config_path=INFO_SCC_CONFIG_PATH,
         target_date=target_date,
         products_dir=products_dir,
     )
@@ -875,7 +878,7 @@ def task_download_from_scc(
     message = download_from_scc(
         lidar_name=lidar_name,
         scc_id=scc_id,
-        info_scc_config_path=Path("/usr/src/app/info_scc_user.yml"),
+        info_scc_config_path=INFO_SCC_CONFIG_PATH,
         target_date=target_date,
         products_dir=products_dir,
     )

@@ -47,6 +47,26 @@ Estas acciones reducen riesgo sin cambiar el comportamiento funcional previsto.
   - rutas locales de datos
 - [ ] Revisar si `.vscode/settings.json` debe versionarse o moverse a documentacion local.
 
+### TODO de Juan Antonio
+Quiero preparar este repositorio para despliegue estable en un servidor Linux de producción con Docker Compose.
+
+Objetivo:
+- [x] Mantener docker-compose.yml como base de desarrollo.
+- [x] Añadir compose.prod.yml pensado para servidor CPD.
+- [x] Añadir .env.example sin credenciales.
+- [x] Añadir scripts/deploy.sh para actualizar desde GitHub y recrear los contenedores.
+- [x] Documentar en DEPLOY.md el flujo: instalacion inicial, configuracion de production.env, despliegue, actualizacion, logs, parada y rollback basico.
+
+Restricciones:
+- [x] No incluir credenciales reales.
+- [x] No montar codigo como volumen en produccion.
+- [x] Usar restart: unless-stopped.
+- [x] Redis debe poder persistir datos si se usa como backend de resultados.
+- [x] RAW debe montarse preferiblemente como solo lectura.
+- [x] PRODUCTS debe montarse con escritura.
+- [x] Flower no debe exponerse publicamente salvo decision explicita.
+
+
 ### Riesgos Detectados
 
 - `MANUAL.md` contiene usuario y password NAS en claro.
