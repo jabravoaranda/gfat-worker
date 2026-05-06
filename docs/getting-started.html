@@ -30,6 +30,14 @@
       the tests that do not need Docker, then move to the container stack.
     </p>
 
+    <h2>What you should have working by the end</h2>
+    <p>
+      After following this page you should be able to run the fast Python tests,
+      start the Docker stack, open the FastAPI documentation page and submit a
+      simple Celery task. That is the baseline before changing LIDAR tasks,
+      adding <code>mrrpropy</code> or deploying to the CPD node.
+    </p>
+
     <h2>Requirements</h2>
     <ul>
       <li>Python 3.11.</li>
@@ -46,6 +54,18 @@
       </p>
     </div>
 
+    <h2>Clone and inspect the repository</h2>
+    <p>
+      Work from a normal clone of the repository. Before changing anything,
+      check that Git sees a clean working tree.
+    </p>
+<pre><code>git status --short
+git log --oneline -5</code></pre>
+    <p>
+      A clean status makes it much easier to tell which files were changed by a
+      test, a documentation edit or a generated artifact.
+    </p>
+
     <h2>Run fast tests</h2>
 <pre><code>uv run pytest -q</code></pre>
     <p>
@@ -55,6 +75,11 @@
     </p>
     <p>Expected result:</p>
 <pre><code>17 passed</code></pre>
+    <p>
+      If these tests fail, fix them before starting Docker. They are cheaper to
+      run and usually point to basic issues such as imports, task registration
+      or API model changes.
+    </p>
 
     <h2>Run the Docker smoke test</h2>
 <pre><code>.\scripts\smoke_docker.ps1</code></pre>
@@ -68,6 +93,10 @@
       It is deliberately not a full scientific validation: it does not mount
       the NAS, does not contact SCC and does not process large LIDAR files.
     </p>
+    <p>
+      Use this test after changing Dockerfiles, runtime dependencies, Celery
+      configuration or anything that affects API-worker communication.
+    </p>
 
     <h2>Start the development stack</h2>
 <pre><code>docker compose up --build</code></pre>
@@ -76,6 +105,11 @@
       starts, open the automatically generated FastAPI documentation at:
     </p>
 <pre><code>http://localhost:8000/docs</code></pre>
+    <p>
+      The interactive API documentation is the easiest way to learn the request
+      format. It also avoids guessing endpoint names while the service is still
+      evolving.
+    </p>
 
     <h2>Start the test stack</h2>
 <pre><code>docker compose -f docker-compose.test.yml up --build</code></pre>
@@ -107,6 +141,31 @@
       A successful result should eventually contain <code>15</code>. If this
       works, the API, broker and worker are talking to each other.
     </p>
+
+    <h2>Second task to try: LIDAR backend diagnostic</h2>
+    <p>
+      After the generic queue path works, check that the worker image can import
+      the current LIDAR backend.
+    </p>
+<pre><code>{
+  "task_name": "tasks.misc.lidar_backend_status",
+  "args": [],
+  "kwargs": {}
+}</code></pre>
+    <p>
+      A healthy result should include <code>"backend": "lidarpy"</code>. If it
+      reports <code>"missing"</code>, rebuild the Docker image and check that
+      <code>atmolidarpy</code> is present in <code>worker/requirements.txt</code>.
+    </p>
+
+    <h2>Common local problems</h2>
+    <table>
+      <tr><th>Symptom</th><th>Likely cause</th><th>What to do</th></tr>
+      <tr><td>Docker cannot bind a port.</td><td>Another stack is already running.</td><td>Use the test compose ports or stop the conflicting service.</td></tr>
+      <tr><td>API works but task stays pending.</td><td>The worker is not running or cannot reach Redis.</td><td>Check compose status and worker logs.</td></tr>
+      <tr><td>LIDAR backend is missing.</td><td>The image was built before the dependency was added.</td><td>Rebuild with <code>docker compose up --build</code>.</td></tr>
+      <tr><td>Fast tests fail but Docker starts.</td><td>The local Python environment and Docker image are testing different surfaces.</td><td>Fix the fast tests first; they protect task registration and API models.</td></tr>
+    </table>
 
     <h2>Build this documentation locally</h2>
     <p>

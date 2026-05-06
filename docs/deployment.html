@@ -30,6 +30,22 @@
       rebuild the image, restart services and run a small health check.
     </p>
 
+    <h2>What this deployment is trying to achieve</h2>
+    <p>
+      The CPD machine should behave like a service node, not like a developer
+      laptop. The repository provides the application code and Docker
+      definitions. The node provides the mounted data paths, environment file
+      and private configuration. Keeping those responsibilities separate makes
+      updates repeatable and makes rollback possible when a new version behaves
+      badly.
+    </p>
+    <p>
+      The normal update path should not involve editing files inside containers,
+      manually installing Python packages, or copying scripts by hand. If the
+      service needs a change, it should be committed to Git, pulled on the node
+      and deployed through the compose file.
+    </p>
+
     <h2>Deployment principles</h2>
     <ul>
       <li>The production node should run from a clean clone of the repository.</li>
@@ -51,6 +67,27 @@
   repo/                 git clone of gfat-worker
   env/.env.production   production environment file
   secrets/info_scc_user.yml</code></pre>
+    <p>
+      This layout is only a recommendation, but it encodes an important idea:
+      the repository can be deleted and cloned again without losing the
+      machine-specific environment or secrets. That matters when moving the
+      service to another node or recovering from a broken working tree.
+    </p>
+
+    <h2>Before installing</h2>
+    <p>
+      Check the node before cloning the repository. It is easier to solve
+      system-level problems before Docker services are involved.
+    </p>
+<pre><code>docker --version
+docker compose version
+git --version
+ssh -T git@github.com</code></pre>
+    <p>
+      The final command should authenticate against GitHub with the SSH key
+      configured for the service node. If it fails, fix SSH access before
+      continuing; otherwise <code>git pull</code> during updates will fail too.
+    </p>
 
     <h2>Initial installation</h2>
 <pre><code>sudo mkdir -p /opt/gfat-worker/{env,secrets}
@@ -66,6 +103,21 @@ cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
       belong in Git.
     </p>
 
+    <h2>Prepare local files and mounts</h2>
+    <p>
+      The compose file expects host paths to exist before services start. Create
+      or verify them explicitly, and check permissions with the same user that
+      will run Docker.
+    </p>
+<pre><code>test -d /path/to/RAW/UGR
+test -d /path/to/PRODUCTS/UGR
+test -f /opt/gfat-worker/secrets/info_scc_user.yml</code></pre>
+    <p>
+      RAW should normally be mounted read-only inside the container. PRODUCTS
+      must be writable because tasks create output files there. SCC config is
+      mounted read-only and should never be committed to the repository.
+    </p>
+
     <h2>Required environment</h2>
     <table>
       <tr><th>Variable</th><th>Purpose</th></tr>
@@ -75,6 +127,13 @@ cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
       <tr><td><code>API_PORT</code></td><td>Published FastAPI port.</td></tr>
       <tr><td><code>FLOWER_PORT</code></td><td>Published Flower port when the <code>ops</code> profile is enabled.</td></tr>
     </table>
+
+    <p>
+      After editing the file, inspect the resolved compose configuration. This
+      catches missing variables and wrong paths before containers are started.
+    </p>
+<pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production \
+  -f compose.prod.yml config</code></pre>
 
     <h2>Start production services</h2>
 <pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production \
@@ -86,6 +145,26 @@ cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
 <pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml ps
 curl -fsS http://127.0.0.1:&lt;API_PORT&gt;/</code></pre>
 
+    <h2>First operational checks</h2>
+    <p>
+      Start with a task that does not require real data. This proves that API,
+      Redis and worker can communicate before scientific processing is tested.
+    </p>
+<pre><code>curl -fsS -X POST http://127.0.0.1:&lt;API_PORT&gt;/task_queue \
+  -H "Content-Type: application/json" \
+  -d '{"task_name":"tasks.misc.test_sum","args":[5,10],"kwargs":{}}'</code></pre>
+    <p>
+      Then run the LIDAR backend diagnostic. This confirms that the production
+      image can import <code>atmolidarpy</code> as <code>lidarpy</code>.
+    </p>
+<pre><code>curl -fsS -X POST http://127.0.0.1:&lt;API_PORT&gt;/task_queue \
+  -H "Content-Type: application/json" \
+  -d '{"task_name":"tasks.misc.lidar_backend_status","args":[],"kwargs":{}}'</code></pre>
+    <p>
+      Use the returned task id with <code>GET /task_queue/{task_id}</code>. A
+      healthy LIDAR backend result should include <code>"backend": "lidarpy"</code>.
+    </p>
+
     <h2>Update after a repository change</h2>
 <pre><code>cd /opt/gfat-worker/repo
 git pull --ff-only
@@ -96,10 +175,32 @@ git pull --ff-only
       or document it here instead of relying on memory.
     </p>
 
+    <h2>Suggested update checklist</h2>
+    <ol>
+      <li>Confirm that the new commit has passed GitHub Actions.</li>
+      <li>Connect to the CPD node and go to <code>/opt/gfat-worker/repo</code>.</li>
+      <li>Run <code>git pull --ff-only</code>.</li>
+      <li>Run the deploy script with the production environment file.</li>
+      <li>Check <code>docker compose ps</code>.</li>
+      <li>Submit <code>tasks.misc.test_sum</code>.</li>
+      <li>Submit <code>tasks.misc.lidar_backend_status</code>.</li>
+      <li>Only then run a real data task.</li>
+    </ol>
+
     <h2>Operational commands</h2>
 <pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml ps
 docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml logs -f api worker
 docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml --profile ops up -d flower</code></pre>
+
+    <h2>Common deployment failures</h2>
+    <table>
+      <tr><th>Symptom</th><th>Likely cause</th><th>First check</th></tr>
+      <tr><td><code>git pull</code> fails.</td><td>SSH key or remote configuration is wrong.</td><td>Run <code>ssh -T git@github.com</code> on the node.</td></tr>
+      <tr><td>Container starts but task imports fail.</td><td>The image was not rebuilt after changing <code>worker/requirements.txt</code>.</td><td>Run deploy with <code>--build</code> through the script.</td></tr>
+      <tr><td>API responds but tasks stay pending.</td><td>Worker cannot reach Redis or is not running.</td><td>Check <code>docker compose ps</code> and worker logs.</td></tr>
+      <tr><td>LIDAR task cannot find files.</td><td>Host path or container mount does not match the task expectation.</td><td>Check <code>RAW_UGR_HOST_PATH</code> and compose volumes.</td></tr>
+      <tr><td>SCC conversion fails immediately.</td><td>SCC config is missing or mounted at the wrong path.</td><td>Check <code>SCC_CONFIG_HOST_PATH</code> and <code>/run/secrets/info_scc_user.yml</code>.</td></tr>
+    </table>
 
     <h2>Rollback</h2>
     <p>Use a known-good Git revision, rebuild and restart the services.</p>
@@ -109,6 +210,15 @@ docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.y
       A rollback only works cleanly if operational files are outside Git and the
       product directories are mounted separately. That is why the production
       layout keeps repository, environment and secrets in different paths.
+    </p>
+
+    <h2>What to record after the first CPD deployment</h2>
+    <p>
+      Once the service is running on the real node, update this documentation
+      with the site-specific decisions that are safe to publish: service port,
+      non-secret mount conventions, update routine and any known limitations.
+      Keep credentials, private hostnames and sensitive internal paths out of
+      the public repository.
     </p>
   </main>
 </body>

@@ -30,6 +30,20 @@
       positional and keyword arguments.
     </p>
 
+    <h2>How to think about the API</h2>
+    <p>
+      The API is a task queue interface. It is not meant to contain all the
+      scientific vocabulary of every instrument. The vocabulary lives in the
+      task name and in the arguments passed to that task. This keeps the HTTP
+      layer small while allowing new modules to be added without redesigning
+      the API.
+    </p>
+    <p>
+      A client should usually do three things: list or know the task name, post
+      a payload to <code>/task_queue</code>, and poll the returned task id until
+      the task reaches a final state.
+    </p>
+
     <h2>Endpoints</h2>
     <table>
       <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
@@ -52,6 +66,11 @@
   "args": [5, 10],
   "kwargs": {}
 }</code></pre>
+    <p>
+      Use <code>args</code> when the task has a short and stable argument order.
+      Use <code>kwargs</code> when the task has optional parameters or when the
+      payload should be easy to read months later.
+    </p>
 
     <h2>Simple curl example</h2>
 <pre><code>curl -fsS -X POST http://127.0.0.1:8000/task_queue \
@@ -62,6 +81,16 @@
       <code>GET /task_queue/{task_id}</code> until the task is finished.
     </p>
 
+    <h2>Manual workflow from the API docs</h2>
+    <ol>
+      <li>Open the FastAPI documentation page, usually <code>/docs</code>.</li>
+      <li>Run <code>GET /registered_tasks</code> and confirm the task name exists.</li>
+      <li>Run <code>POST /task_queue</code> with the JSON payload.</li>
+      <li>Copy the returned task id.</li>
+      <li>Run <code>GET /task_queue/{task_id}</code> until the state is final.</li>
+      <li>If the state is <code>FAILURE</code>, check the worker logs as well as the API response.</li>
+    </ol>
+
     <h2>How to read task states</h2>
     <table>
       <tr><th>State</th><th>Meaning</th></tr>
@@ -69,6 +98,20 @@
       <tr><td><code>STARTED</code></td><td>The worker has started executing the task.</td></tr>
       <tr><td><code>SUCCESS</code></td><td>The task finished and the result field should contain the returned value.</td></tr>
       <tr><td><code>FAILURE</code></td><td>The task raised an exception. Inspect the error and worker logs.</td></tr>
+    </table>
+
+    <p>
+      A task can briefly appear as <code>PENDING</code> even when everything is
+      healthy. Persistent <code>PENDING</code> is different: it usually means
+      the worker is not consuming the queue, the task name is wrong, or Redis is
+      not reachable from one of the services.
+    </p>
+
+    <h2>Choosing between args and kwargs</h2>
+    <table>
+      <tr><th>Style</th><th>Use when</th><th>Example</th></tr>
+      <tr><td><code>args</code></td><td>The task has two or three obvious arguments and the order is unlikely to change.</td><td><code>["alhambra", "2024-09-09"]</code></td></tr>
+      <tr><td><code>kwargs</code></td><td>The task has optional flags, physical parameters or values that should be self-describing.</td><td><code>{"site": "ugr", "overwrite": false}</code></td></tr>
     </table>
 
     <h2 id="diagnostic-task">Diagnostic task</h2>
@@ -83,6 +126,12 @@
   "kwargs": {}
 }</code></pre>
     <p>Expected backend result includes <code>"backend": "lidarpy"</code>.</p>
+    <p>
+      If the result contains <code>"backend": "missing"</code>, the worker image
+      does not have the runtime dependency available. Check
+      <code>worker/requirements.txt</code>, rebuild the image and restart the
+      worker.
+    </p>
 
     <h2>LIDAR examples</h2>
     <p>
@@ -91,6 +140,10 @@
       container.
     </p>
     <h3>Convert RAW to NetCDF</h3>
+    <p>
+      This is the first LIDAR processing task to try with real data because it
+      only depends on local mounted files and the LIDAR backend.
+    </p>
 <pre><code>{
   "task_name": "tasks.lidar.task_nc_convert",
   "args": ["alhambra", "2024-09-09"],
@@ -98,6 +151,10 @@
 }</code></pre>
 
     <h3>Generate quicklook</h3>
+    <p>
+      Quicklook generation needs an existing converted product and channel or
+      signal information that makes sense for the selected system.
+    </p>
 <pre><code>{
   "task_name": "tasks.lidar.task_quicklook",
   "args": ["alhambra", "1064fta", "0.0", "30000000.0", "2024-09-09"],
@@ -114,6 +171,15 @@
   "args": ["alhambra", 783, "11:30:00", "12:30:00", 20.0, 1013.25, "2024-09-09"],
   "kwargs": {}
 }</code></pre>
+
+    <h2>Recommended order for real LIDAR validation</h2>
+    <ol>
+      <li>Run <code>tasks.misc.test_sum</code> to confirm the queue path.</li>
+      <li>Run <code>tasks.misc.lidar_backend_status</code> to confirm <code>lidarpy</code>.</li>
+      <li>Run RAW to NetCDF conversion for a known date with available data.</li>
+      <li>Run quicklook using the converted product.</li>
+      <li>Run SCC conversion only after local file processing works.</li>
+    </ol>
 
     <h2>Task names for new modules</h2>
     <p>
@@ -132,6 +198,15 @@
         documentation or from a terminal.
       </p>
     </div>
+
+    <h2>Failure triage</h2>
+    <table>
+      <tr><th>What you see</th><th>What it usually means</th><th>Next action</th></tr>
+      <tr><td><code>404</code> on an endpoint.</td><td>The URL or API port is wrong.</td><td>Open <code>/docs</code> and confirm the base URL.</td></tr>
+      <tr><td><code>422</code> when posting JSON.</td><td>The payload shape does not match the API model.</td><td>Check <code>task_name</code>, <code>args</code> and <code>kwargs</code>.</td></tr>
+      <tr><td>Task reaches <code>FAILURE</code>.</td><td>The worker raised an exception.</td><td>Read the returned error and then inspect worker logs.</td></tr>
+      <tr><td>Task name is unknown.</td><td>The module is not registered or the container has not been rebuilt.</td><td>Check <code>/registered_tasks</code> and <code>worker/app.py</code>.</td></tr>
+    </table>
   </main>
 </body>
 </html>

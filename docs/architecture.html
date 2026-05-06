@@ -30,6 +30,22 @@
       processing code in a controlled environment.
     </p>
 
+    <h2>High-level idea</h2>
+    <p>
+      <code>gfat-worker</code> is an execution layer. It does not try to be the
+      scientific library for every GFAT instrument. Instead, it gives those
+      libraries a consistent operational environment: a Docker image, a task
+      queue, an API, mounted data paths and a predictable way to inspect
+      results.
+    </p>
+    <p>
+      This separation matters because operational processing has different
+      failure modes from library development. A scientific function can be
+      correct and still fail operationally if the dependency is missing in the
+      container, the input mount is wrong, Redis is down or a task name is not
+      registered.
+    </p>
+
     <h2>Runtime components</h2>
     <table>
       <tr><th>Component</th><th>Role</th></tr>
@@ -53,6 +69,20 @@
       processing happens outside the API process, inside the worker.
     </p>
 
+    <h2>Why API and worker are separate</h2>
+    <p>
+      The API should be lightweight and responsive. Its job is to validate a
+      request and enqueue work. Scientific processing can take much longer and
+      can fail for reasons related to files, dependencies or external services.
+      Running that work in a separate Celery worker keeps the HTTP interface
+      available while processing continues in the background.
+    </p>
+    <p>
+      This also makes scaling clearer later. If task volume grows, more worker
+      processes can be added without changing the API contract. If API traffic
+      grows, the API can be handled separately from the processing workload.
+    </p>
+
     <h2>Repository structure</h2>
 <pre><code>worker/
   app.py             Celery application
@@ -66,6 +96,16 @@ tests/               fast pytest suite
 scripts/             smoke and deploy helpers
 docs/                GitHub Pages documentation
 compose.prod.yml     production compose file</code></pre>
+
+    <h2>Where to put changes</h2>
+    <table>
+      <tr><th>Change</th><th>Primary location</th><th>Why</th></tr>
+      <tr><td>Add a new scientific task.</td><td><code>worker/tasks/</code> and <code>worker/app.py</code></td><td>The task module defines behavior; <code>app.py</code> makes it discoverable.</td></tr>
+      <tr><td>Add a runtime package.</td><td><code>worker/requirements.txt</code></td><td>The Docker worker installs this file when the image is built.</td></tr>
+      <tr><td>Add local test tooling.</td><td><code>pyproject.toml</code></td><td>These dependencies are for development and CI, not necessarily the worker image.</td></tr>
+      <tr><td>Add a deployment routine.</td><td><code>scripts/</code> and <code>DEPLOY.md</code></td><td>Repeated operational steps should be scripted and documented.</td></tr>
+      <tr><td>Add public docs.</td><td><code>docs/</code></td><td>GitHub Pages publishes this directory.</td></tr>
+    </table>
 
     <h2>Task registration</h2>
     <p>Celery task modules are registered in <code>worker/app.py</code>:</p>
@@ -96,6 +136,19 @@ compose.prod.yml     production compose file</code></pre>
       busy for longer periods while processing data.
     </p>
 
+    <h2>Development, test and production compose files</h2>
+    <table>
+      <tr><th>File</th><th>Use</th><th>Typical command</th></tr>
+      <tr><td><code>docker-compose.yml</code></td><td>Default local development stack.</td><td><code>docker compose up --build</code></td></tr>
+      <tr><td><code>docker-compose.test.yml</code></td><td>Local or CI smoke checks on alternate ports.</td><td><code>docker compose -f docker-compose.test.yml up --build</code></td></tr>
+      <tr><td><code>compose.prod.yml</code></td><td>CPD deployment with external environment file and mounts.</td><td><code>docker compose --env-file ... -f compose.prod.yml up -d --build</code></td></tr>
+    </table>
+    <p>
+      Keeping these files separate avoids mixing local convenience settings
+      with production assumptions. The test compose file also avoids common port
+      conflicts by using ports such as <code>18000</code> and <code>6380</code>.
+    </p>
+
     <h2>Data paths</h2>
     <table>
       <tr><th>Container path</th><th>Purpose</th><th>Mode</th></tr>
@@ -103,6 +156,12 @@ compose.prod.yml     production compose file</code></pre>
       <tr><td><code>/mnt/PRODUCTS/UGR</code></td><td>Generated products</td><td>read-write</td></tr>
       <tr><td><code>/run/secrets/info_scc_user.yml</code></td><td>SCC credentials/config</td><td>read-only</td></tr>
     </table>
+    <p>
+      Tasks should treat these container paths as the runtime interface. Host
+      paths may differ between a laptop and the CPD node, but the container path
+      should remain stable so task code does not need to know where the NAS is
+      mounted on each machine.
+    </p>
 
     <h2>Dependency layers</h2>
     <p>
@@ -119,6 +178,15 @@ compose.prod.yml     production compose file</code></pre>
         available inside the worker container.
       </p>
     </div>
+
+    <h2>Architectural rules of thumb</h2>
+    <ul>
+      <li>Keep task functions thin; call scientific packages for domain logic.</li>
+      <li>Keep secrets and machine-specific paths out of Git.</li>
+      <li>Return structured results instead of free-form strings.</li>
+      <li>Add a diagnostic task before adding a heavy real-data task for a new backend.</li>
+      <li>Verify behavior first without Docker, then with Docker, then with real data.</li>
+    </ul>
   </main>
 </body>
 </html>
