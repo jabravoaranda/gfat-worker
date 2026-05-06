@@ -63,6 +63,10 @@ The workflow file is `.github/workflows/pages.yml`. GitHub requires the Pages
 site to be enabled once at repository level before `actions/deploy-pages` can
 publish the artifact.
 
+The documentation workflow follows the same build/deploy split used by
+`lidarpy`: the `build` job validates the static site and uploads the Pages
+artifact, and the `deploy` job publishes that artifact.
+
 ## Main Documentation
 
 - [Overview](docs/index.html)
