@@ -53,6 +53,16 @@ Preview it locally by opening:
 docs/index.html
 ```
 
+First-time GitHub Pages activation:
+
+1. Open `Settings > Pages` in the GitHub repository.
+2. Under `Build and deployment`, set `Source` to `GitHub Actions`.
+3. Re-run the `Documentation` workflow or push a change under `docs/`.
+
+The workflow file is `.github/workflows/pages.yml`. GitHub requires the Pages
+site to be enabled once at repository level before `actions/deploy-pages` can
+publish the artifact.
+
 ## Main Documentation
 
 - [Overview](docs/index.html)
