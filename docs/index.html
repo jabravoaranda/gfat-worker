@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">gfat-worker</p>
+      <h1>Run, schedule and inspect GFAT processing tasks</h1>
+      <p class="lead">
+        <code>gfat-worker</code> is an operational Docker service for running
+        Python processing tasks through FastAPI, Celery and Redis. It currently
+        runs ALHAMBRA LIDAR workflows with <code>atmolidarpy</code>, and it is
+        structured so new task modules can be added for packages such as
+        <code>mrrpropy</code> or <code>dcrpy</code>.
+      </p>
+      <div class="cta-row">
+        <a class="button" href="getting-started.html">Getting started</a>
+        <a class="button secondary" href="adding-tasks.html">Implement a task</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="feature-band">
+      <section class="feature-copy">
+        <h2>What the service does</h2>
+        <ul>
+          <li>Exposes a generic API for queuing registered Celery tasks.</li>
+          <li>Runs scheduled operational jobs through Celery Beat.</li>
+          <li>Mounts RAW data read-only and writes products to a controlled path.</li>
+          <li>Builds a reproducible worker image with scientific dependencies pinned.</li>
+          <li>Supports extension through independent task modules.</li>
+        </ul>
+      </section>
+      <section class="diagram">
+<pre>Operator/API
+    |
+    v
+ FastAPI ----> Redis <---- Flower
+                 |
+                 v
+          Celery worker
+          /     |     \
+       RAW  PRODUCTS  SCC</pre>
+      </section>
+    </section>
+
+    <section class="grid two-up">
+      <section class="card">
+        <h2>Documentation map</h2>
+        <ul>
+          <li><a href="getting-started.html">Getting started</a>: local setup and first checks.</li>
+          <li><a href="architecture.html">Architecture</a>: containers, modules and runtime boundaries.</li>
+          <li><a href="api.html">API usage</a>: queue tasks and inspect results.</li>
+          <li><a href="adding-tasks.html">Adding tasks</a>: integrate packages such as <code>mrrpropy</code> or <code>dcrpy</code>.</li>
+          <li><a href="deployment.html">Deployment</a>: CPD deployment and update flow.</li>
+        </ul>
+      </section>
+      <section class="card">
+        <h2>Current LIDAR backend</h2>
+        <p>
+          The runtime dependency is <code>atmolidarpy==0.1.0</code>. Python
+          code imports it as <code>lidarpy</code>. The worker no longer depends
+          on <code>gfatpy</code> at runtime.
+        </p>
+        <p><a href="api.html#diagnostic-task">Run the backend diagnostic task</a></p>
+      </section>
+      <section class="card">
+        <h2>Production model</h2>
+        <p>
+          Production uses <code>compose.prod.yml</code> with separate API,
+          worker and Redis services. Secrets and local paths live outside Git
+          in <code>.env.production</code> and <code>info_scc_user.yml</code>.
+        </p>
+        <p><a href="deployment.html">Open deployment guide</a></p>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,39 +1,167 @@
-# GFAT - WORKER
+# GFAT Worker
 
-A project with Docker Compose with the following containers:
+`gfat-worker` is a Dockerized task runner for GFAT operational processing. It exposes a small FastAPI service, queues work through Celery, uses Redis as broker/result backend, and runs scientific processing tasks inside a reproducible Python container.
 
-- a **Redis** database used as a broker (tasks queue) and backend (store information about finished jobs)
-- **Worker** is a [Celery](https://docs.celeryq.dev/en/stable/index.html) powered task manager connected to Redis. Its interface can run scheduled and manage the execution of queued jobs.
-- **Flower** is a different container connecting to Redis and displays information about the jobs.
+The current operational focus is ALHAMBRA LIDAR processing with `atmolidarpy` installed as the Python distribution and imported in code as `lidarpy`.
 
-## How to use
+## What It Runs
 
-Install [Docker](https://docs.docker.com/get-docker/) in your local machine.
+- FastAPI API: submit tasks and query task status.
+- Celery worker: execute Python tasks.
+- Celery Beat: run scheduled tasks when enabled.
+- Redis: queue broker and result backend.
+- Flower: optional operational UI for Celery.
 
-Then build and run the services with:
+## Repository Map
 
-```bash
-docker compose up --build
+```text
+worker/
+  app.py                  Celery application and task registration
+  api/                    FastAPI application and request/response models
+  tasks/                  Celery task modules
+  scheduled/              Celery Beat schedule
+  lidar_backend.py        LIDAR import adapter for atmolidarpy/lidarpy
+  requirements.txt        Runtime dependencies installed in the Docker image
+
+tests/                    Fast tests run with uv/pytest
+scripts/                  Local and deployment helper scripts
+docs/                     Architecture, API, and extension guides
+
+docker-compose.yml        Development compose file
+docker-compose.test.yml   Local/CI smoke-test compose file
+compose.prod.yml          Production compose file for CPD deployment
+DEPLOY.md                 Production deployment guide
+ROADMAP.md                Current development roadmap
 ```
 
-## Tests
+## Documentation Website
 
-Run the fast no-Docker test suite with `uv`:
+The repository documentation is a static GitHub Pages site stored in `docs/`.
+It follows the same lightweight model as the `lidarpy` documentation site:
+plain HTML, CSS, and no build step.
+
+Once Pages is enabled for this repository with source `GitHub Actions`, the
+site will be available at:
+
+```text
+https://jabravoaranda.github.io/gfat-worker/
+```
+
+Preview it locally by opening:
+
+```text
+docs/index.html
+```
+
+## Main Documentation
+
+- [Overview](docs/index.html)
+- [Getting Started](docs/getting-started.html)
+- [Architecture](docs/architecture.html)
+- [Adding New Tasks](docs/adding-tasks.html)
+- [API Usage](docs/api.html)
+- [Production Deployment](docs/deployment.html)
+- [Roadmap](docs/roadmap.html)
+
+Start with [Adding New Tasks](docs/adding-tasks.html) if you want to implement tasks using another Python package such as `mrrpropy` or `dcrpy`.
+
+## Requirements
+
+For local development:
+
+- Python 3.11
+- `uv`
+- Docker Desktop or Docker Engine with Docker Compose
+
+For production:
+
+- Linux server
+- Docker Engine
+- Docker Compose plugin
+- mounted RAW and PRODUCTS paths
+- non-versioned SCC config file if SCC operations are used
+
+## Fast Local Tests
 
 ```bash
 uv run pytest -q
 ```
 
-These tests validate imports, API models, task registration, schedule structure,
-date handling, and interval parsing without starting Redis, Celery workers,
-Docker, NAS mounts, or SCC connections.
+These tests do not require Docker, Redis, NAS mounts, SCC credentials, or real data.
 
-Run the Docker smoke test with:
+## Docker Smoke Test
+
+On Windows/PowerShell:
 
 ```powershell
 .\scripts\smoke_docker.ps1
 ```
 
-This starts a test-only Redis and worker/API stack, queues
-`tasks.misc.test_sum`, verifies the result, and then removes the test
-containers. It does not mount NAS paths or contact SCC.
+This starts Redis, the worker/API container, and Flower using `docker-compose.test.yml`, queues `tasks.misc.test_sum`, verifies the result, then removes the test stack.
+
+## Development Stack
+
+For the default development compose:
+
+```bash
+docker compose up --build
+```
+
+The generic API is then available at:
+
+```text
+http://localhost:8000/docs
+```
+
+The test compose uses ports `18000`, `6380`, and `5555` by default:
+
+```bash
+docker compose -f docker-compose.test.yml up --build
+```
+
+## Queue A Task
+
+Example:
+
+```json
+{
+  "task_name": "tasks.misc.test_sum",
+  "args": [5, 10],
+  "kwargs": {}
+}
+```
+
+Post it to:
+
+```text
+POST /task_queue
+```
+
+Then query:
+
+```text
+GET /task_queue/{task_id}
+```
+
+More examples are in [API Usage](docs/api.html).
+
+## Runtime Dependencies
+
+Runtime dependencies for the worker image live in:
+
+```text
+worker/requirements.txt
+```
+
+If a new task module needs `mrrpropy`, `dcrpy`, or another package, add the package there, then document any required environment variables or mounted paths.
+
+## CI
+
+GitHub Actions run on push to `main` and on pull requests. The workflow:
+
+- installs dependencies with `uv`
+- runs the fast pytest suite
+- builds the Docker worker image
+- starts Redis/API/worker
+- queues a simple Celery task
+- verifies the `lidarpy` backend is available

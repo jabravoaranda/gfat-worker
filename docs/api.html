@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API usage - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">api usage</p>
+      <h1>Queue tasks and inspect results</h1>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Endpoints</h2>
+    <table>
+      <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+      <tr><td><code>GET</code></td><td><code>/</code></td><td>API information.</td></tr>
+      <tr><td><code>GET</code></td><td><code>/registered_tasks</code></td><td>Registered Celery tasks.</td></tr>
+      <tr><td><code>POST</code></td><td><code>/task_queue</code></td><td>Queue a task.</td></tr>
+      <tr><td><code>GET</code></td><td><code>/task_queue/{task_id}</code></td><td>Task state and result.</td></tr>
+      <tr><td><code>DELETE</code></td><td><code>/task_queue/{task_id}</code></td><td>Revoke a task.</td></tr>
+    </table>
+
+    <h2>Queue request</h2>
+<pre><code>{
+  "task_name": "tasks.misc.test_sum",
+  "args": [5, 10],
+  "kwargs": {}
+}</code></pre>
+
+    <h2>Simple curl example</h2>
+<pre><code>curl -fsS -X POST http://127.0.0.1:8000/task_queue \
+  -H "Content-Type: application/json" \
+  -d '{"task_name":"tasks.misc.test_sum","args":[5,10],"kwargs":{}}'</code></pre>
+
+    <h2 id="diagnostic-task">Diagnostic task</h2>
+<pre><code>{
+  "task_name": "tasks.misc.lidar_backend_status",
+  "args": [],
+  "kwargs": {}
+}</code></pre>
+    <p>Expected backend result includes <code>"backend": "lidarpy"</code>.</p>
+
+    <h2>LIDAR examples</h2>
+    <h3>Convert RAW to NetCDF</h3>
+<pre><code>{
+  "task_name": "tasks.lidar.task_nc_convert",
+  "args": ["alhambra", "2024-09-09"],
+  "kwargs": {}
+}</code></pre>
+
+    <h3>Generate quicklook</h3>
+<pre><code>{
+  "task_name": "tasks.lidar.task_quicklook",
+  "args": ["alhambra", "1064fta", "0.0", "30000000.0", "2024-09-09"],
+  "kwargs": {}
+}</code></pre>
+
+    <h3>Convert to SCC NetCDF</h3>
+<pre><code>{
+  "task_name": "tasks.lidar.task_convert_scc",
+  "args": ["alhambra", 783, "11:30:00", "12:30:00", 20.0, 1013.25, "2024-09-09"],
+  "kwargs": {}
+}</code></pre>
+
+    <h2>Task names for new modules</h2>
+    <p>
+      A function <code>mrr_backend_status</code> in <code>worker/tasks/mrr.py</code>
+      is queued as <code>tasks.mrr.mrr_backend_status</code>.
+    </p>
+    <p>
+      A function <code>dcr_backend_status</code> in <code>worker/tasks/dcr.py</code>
+      is queued as <code>tasks.dcr.dcr_backend_status</code>.
+    </p>
+  </main>
+</body>
+</html>

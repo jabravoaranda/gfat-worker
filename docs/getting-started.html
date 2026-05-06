@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting started - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">getting started</p>
+      <h1>Local setup and first checks</h1>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Requirements</h2>
+    <ul>
+      <li>Python 3.11.</li>
+      <li><code>uv</code>.</li>
+      <li>Docker Desktop or Docker Engine with Compose.</li>
+    </ul>
+
+    <h2>Run fast tests</h2>
+<pre><code>uv run pytest -q</code></pre>
+    <p>These tests do not require Docker, NAS mounts, SCC credentials or real data.</p>
+
+    <h2>Run the Docker smoke test</h2>
+<pre><code>.\scripts\smoke_docker.ps1</code></pre>
+    <p>
+      The smoke test starts Redis and the worker/API stack, queues
+      <code>tasks.misc.test_sum</code>, checks the result and removes the test stack.
+    </p>
+
+    <h2>Start the development stack</h2>
+<pre><code>docker compose up --build</code></pre>
+    <p>Open the API docs at:</p>
+<pre><code>http://localhost:8000/docs</code></pre>
+
+    <h2>Start the test stack</h2>
+<pre><code>docker compose -f docker-compose.test.yml up --build</code></pre>
+    <p>Default ports:</p>
+    <table>
+      <tr><th>Service</th><th>Port</th></tr>
+      <tr><td>API</td><td><code>18000</code></td></tr>
+      <tr><td>Redis</td><td><code>6380</code></td></tr>
+      <tr><td>Flower</td><td><code>5555</code></td></tr>
+    </table>
+
+    <h2>Build this documentation locally</h2>
+    <p>No build step is required. Open <code>docs/index.html</code> directly in a browser.</p>
+  </main>
+</body>
+</html>

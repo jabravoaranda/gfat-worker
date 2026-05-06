@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deployment - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">deployment</p>
+      <h1>CPD deployment and update workflow</h1>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Deployment principles</h2>
+    <ul>
+      <li>The production node should run from a clean clone of the repository.</li>
+      <li>Secrets and local paths stay outside Git.</li>
+      <li>Updates should be limited to <code>git pull</code>, rebuild, restart and health checks.</li>
+      <li>RAW data is mounted read-only; generated products are mounted read-write.</li>
+    </ul>
+
+    <h2>Recommended server layout</h2>
+<pre><code>/opt/gfat-worker/
+  repo/                 git clone of gfat-worker
+  env/.env.production   production environment file
+  secrets/info_scc_user.yml</code></pre>
+
+    <h2>Initial installation</h2>
+<pre><code>sudo mkdir -p /opt/gfat-worker/{env,secrets}
+cd /opt/gfat-worker
+git clone git@github.com:jabravoaranda/gfat-worker.git repo
+cd repo
+cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
+
+    <p>Edit <code>/opt/gfat-worker/env/.env.production</code> with the real CPD paths and service settings.</p>
+
+    <h2>Required environment</h2>
+    <table>
+      <tr><th>Variable</th><th>Purpose</th></tr>
+      <tr><td><code>RAW_UGR_HOST_PATH</code></td><td>Host path containing RAW input data.</td></tr>
+      <tr><td><code>PRODUCTS_UGR_HOST_PATH</code></td><td>Host path where products are written.</td></tr>
+      <tr><td><code>SCC_CONFIG_HOST_PATH</code></td><td>Host path to <code>info_scc_user.yml</code>.</td></tr>
+      <tr><td><code>API_PORT</code></td><td>Published FastAPI port.</td></tr>
+      <tr><td><code>FLOWER_PORT</code></td><td>Published Flower port when the <code>ops</code> profile is enabled.</td></tr>
+    </table>
+
+    <h2>Start production services</h2>
+<pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production \
+  -f compose.prod.yml up -d --build api worker redis</code></pre>
+
+    <h2>Update after a repository change</h2>
+<pre><code>cd /opt/gfat-worker/repo
+git pull --ff-only
+./scripts/deploy.sh /opt/gfat-worker/env/.env.production</code></pre>
+
+    <h2>Operational commands</h2>
+<pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml ps
+docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml logs -f api worker
+docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml --profile ops up -d flower</code></pre>
+
+    <h2>Rollback</h2>
+    <p>Use a known-good Git revision, rebuild and restart the services.</p>
+<pre><code>git checkout &lt;known-good-commit&gt;
+./scripts/deploy.sh /opt/gfat-worker/env/.env.production</code></pre>
+  </main>
+</body>
+</html>

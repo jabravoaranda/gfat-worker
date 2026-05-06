@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roadmap - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">roadmap</p>
+      <h1>Current improvement plan</h1>
+      <p class="lead">
+        This page summarizes the operational priorities. The editable working
+        tracker remains <code>ROADMAP.md</code> in the repository root.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Done baseline</h2>
+    <ul>
+      <li>Repository hygiene: ignored caches, local data and secrets.</li>
+      <li>Runtime moved from <code>gfatpy</code> to <code>atmolidarpy</code>, imported as <code>lidarpy</code>.</li>
+      <li>Fast pytest suite using <code>uv</code>.</li>
+      <li>Docker smoke workflow for API, Redis, Celery and LIDAR backend checks.</li>
+      <li>Production compose file and deployment helper for the CPD node.</li>
+      <li>GitHub Actions workflow that verifies the worker on push to <code>main</code>.</li>
+    </ul>
+
+    <h2>Immediate priorities</h2>
+    <table>
+      <tr><th>Area</th><th>Next work</th></tr>
+      <tr><td>CPD deployment</td><td>Run the production deployment script on the real Linux service node and document any site-specific changes.</td></tr>
+      <tr><td>Real data checks</td><td>Add controlled SCC conversion fixtures or a lightweight real-data validation dataset.</td></tr>
+      <tr><td>Observability</td><td>Add health/version endpoints and clearer task result summaries.</td></tr>
+      <tr><td>Scheduling</td><td>Review Celery Beat jobs before enabling them permanently in production.</td></tr>
+      <tr><td>New modules</td><td>Use the same task pattern for <code>mrrpropy</code>, <code>dcrpy</code> and future processing libraries.</td></tr>
+    </table>
+
+    <h2>Testing strategy</h2>
+    <ul>
+      <li>Fast tests without Docker for imports, adapters, task registration and API models.</li>
+      <li>Docker tests for the actual API, Redis and Celery execution path.</li>
+      <li>Real-data tests for LIDAR/SCC workflows, kept separate from regular CI because of size and credentials.</li>
+      <li>Deployment checks on the CPD node after every operational update.</li>
+    </ul>
+
+    <h2>How to update the roadmap</h2>
+    <p>
+      Edit <code>ROADMAP.md</code> for day-to-day decisions and actions. When
+      the public direction changes, mirror the high-level summary here so the
+      documentation site stays useful for new contributors.
+    </p>
+  </main>
+</body>
+</html>

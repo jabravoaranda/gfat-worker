@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adding tasks - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">adding tasks</p>
+      <h1>Implement new processing modules</h1>
+      <p class="lead">
+        Use this workflow for packages such as <code>mrrpropy</code>,
+        <code>dcrpy</code>, or any other Python processing library.
+      </p>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Implementation checklist</h2>
+    <ol>
+      <li>Add the runtime dependency to <code>worker/requirements.txt</code>.</li>
+      <li>Create a task module under <code>worker/tasks/</code>.</li>
+      <li>Register the module in <code>worker/app.py</code>.</li>
+      <li>Add tests for imports and task registration.</li>
+      <li>Document inputs, outputs, mounts and environment variables.</li>
+    </ol>
+
+    <h2>1. Add the dependency</h2>
+<pre><code># worker/requirements.txt
+mrrpropy==0.1.0
+dcrpy==0.1.0</code></pre>
+    <p>
+      Pin production versions. Do not install packages dynamically every time
+      the container starts.
+    </p>
+
+    <h2>2. Create the task module</h2>
+<pre><code># worker/tasks/mrr.py
+from celery import shared_task
+
+
+@shared_task
+def mrr_backend_status():
+    import mrrpropy
+
+    return {
+        "backend": "mrrpropy",
+        "module": mrrpropy.__name__,
+    }</code></pre>
+
+    <p>The public Celery task name is:</p>
+<pre><code>tasks.mrr.mrr_backend_status</code></pre>
+
+    <h2>3. Register the module</h2>
+<pre><code># worker/app.py
+app.autodiscover_tasks([
+    "tasks.lidar",
+    "tasks.misc",
+    "tasks.mrr",
+], force=True)</code></pre>
+
+    <h2>4. Prefer backend adapters for optional packages</h2>
+<pre><code># worker/mrr_backend.py
+try:
+    import mrrpropy
+    MRR_BACKEND = "mrrpropy"
+except ImportError:
+    MRR_BACKEND = "missing"
+
+    def _missing(*args, **kwargs):
+        raise RuntimeError("MRR processing requires the 'mrrpropy' distribution.")</code></pre>
+
+    <h2>5. Add tests</h2>
+<pre><code># tests/test_registered_tasks.py
+expected_tasks = {
+    "tasks.misc.test_sum",
+    "tasks.mrr.mrr_backend_status",
+}</code></pre>
+
+    <p>Run:</p>
+<pre><code>uv run pytest -q</code></pre>
+
+    <h2>6. Return structured results</h2>
+<pre><code>return {
+    "status": "ok",
+    "message": "MRR product created.",
+    "created_files": [output_path.name],
+    "skipped_files": [],
+    "errors": [],
+}</code></pre>
+
+    <div class="note">
+      Avoid returning only free-form strings for new tasks. Structured results
+      are easier to inspect through the API and safer for future dashboards.
+    </div>
+
+    <h2>Operational documentation per task</h2>
+    <p>Each new module should document:</p>
+    <ul>
+      <li>required package and version</li>
+      <li>required mounts and environment variables</li>
+      <li>input file naming convention</li>
+      <li>output directory convention</li>
+      <li>whether it contacts external services</li>
+      <li>example JSON payload for <code>/task_queue</code></li>
+    </ul>
+  </main>
+</body>
+</html>

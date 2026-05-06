@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture - GFAT Worker</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="site-header compact">
+    <div class="wrap">
+      <nav class="nav">
+        <a href="index.html">Overview</a>
+        <a href="getting-started.html">Getting started</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="api.html">API usage</a>
+        <a href="adding-tasks.html">Adding tasks</a>
+        <a href="deployment.html">Deployment</a>
+        <a href="roadmap.html">Roadmap</a>
+      </nav>
+      <p class="eyebrow">architecture</p>
+      <h1>Service boundaries and module layout</h1>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h2>Runtime components</h2>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>FastAPI</td><td>Queues tasks and exposes task state.</td></tr>
+      <tr><td>Celery worker</td><td>Runs Python task functions.</td></tr>
+      <tr><td>Celery Beat</td><td>Runs scheduled jobs when enabled.</td></tr>
+      <tr><td>Redis</td><td>Broker and result backend.</td></tr>
+      <tr><td>Flower</td><td>Optional Celery monitoring UI.</td></tr>
+    </table>
+
+    <h2>Repository structure</h2>
+<pre><code>worker/
+  app.py             Celery application
+  api/               FastAPI app and Pydantic models
+  tasks/             Celery task modules
+  scheduled/         Celery Beat schedule
+  lidar_backend.py   lidarpy import adapter
+  requirements.txt   runtime dependencies
+
+tests/               fast pytest suite
+scripts/             smoke and deploy helpers
+docs/                GitHub Pages documentation
+compose.prod.yml     production compose file</code></pre>
+
+    <h2>Task registration</h2>
+    <p>Celery task modules are registered in <code>worker/app.py</code>:</p>
+<pre><code>app.autodiscover_tasks([
+    "tasks.lidar",
+    "tasks.misc",
+], force=True)</code></pre>
+    <p>
+      A new module such as <code>worker/tasks/mrr.py</code> must be added to
+      this list as <code>tasks.mrr</code>.
+    </p>
+
+    <h2>Production layout</h2>
+    <p>
+      Production uses <code>compose.prod.yml</code>, where API and worker are
+      separate services built from the same image. Redis persists data in a
+      Docker volume. Flower is optional and only starts with the <code>ops</code>
+      profile.
+    </p>
+
+    <h2>Data paths</h2>
+    <table>
+      <tr><th>Container path</th><th>Purpose</th><th>Mode</th></tr>
+      <tr><td><code>/mnt/RAW/UGR</code></td><td>Input RAW data</td><td>read-only</td></tr>
+      <tr><td><code>/mnt/PRODUCTS/UGR</code></td><td>Generated products</td><td>read-write</td></tr>
+      <tr><td><code>/run/secrets/info_scc_user.yml</code></td><td>SCC credentials/config</td><td>read-only</td></tr>
+    </table>
+
+    <h2>Dependency layers</h2>
+    <p>
+      Runtime dependencies go in <code>worker/requirements.txt</code>. Test and
+      development dependencies go in <code>pyproject.toml</code>. Scientific
+      packages needed by tasks must be installed in the worker image.
+    </p>
+  </main>
+</body>
+</html>
