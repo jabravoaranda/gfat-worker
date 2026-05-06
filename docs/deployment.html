@@ -24,6 +24,12 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      This page describes the intended operational deployment on a Linux service
+      node in the CPD. The aim is to make updates boring: pull the repository,
+      rebuild the image, restart services and run a small health check.
+    </p>
+
     <h2>Deployment principles</h2>
     <ul>
       <li>The production node should run from a clean clone of the repository.</li>
@@ -31,6 +37,14 @@
       <li>Updates should be limited to <code>git pull</code>, rebuild, restart and health checks.</li>
       <li>RAW data is mounted read-only; generated products are mounted read-write.</li>
     </ul>
+
+    <div class="callout">
+      <p>
+        The repository should contain code, Docker definitions and public
+        documentation. The CPD node should contain environment files, mounted
+        data paths and secrets.
+      </p>
+    </div>
 
     <h2>Recommended server layout</h2>
 <pre><code>/opt/gfat-worker/
@@ -46,6 +60,11 @@ cd repo
 cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
 
     <p>Edit <code>/opt/gfat-worker/env/.env.production</code> with the real CPD paths and service settings.</p>
+    <p>
+      Keep this file out of the repository. It is specific to the machine where
+      the service runs and may contain paths or operational settings that do not
+      belong in Git.
+    </p>
 
     <h2>Required environment</h2>
     <table>
@@ -60,11 +79,22 @@ cp .env.example /opt/gfat-worker/env/.env.production</code></pre>
     <h2>Start production services</h2>
 <pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production \
   -f compose.prod.yml up -d --build api worker redis</code></pre>
+    <p>
+      After startup, check that all services are up and that the API responds.
+      The exact URL depends on <code>API_PORT</code>.
+    </p>
+<pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml ps
+curl -fsS http://127.0.0.1:&lt;API_PORT&gt;/</code></pre>
 
     <h2>Update after a repository change</h2>
 <pre><code>cd /opt/gfat-worker/repo
 git pull --ff-only
 ./scripts/deploy.sh /opt/gfat-worker/env/.env.production</code></pre>
+    <p>
+      The deployment script is meant to encode the normal update routine. If a
+      manual command is needed repeatedly on the CPD node, add it to the script
+      or document it here instead of relying on memory.
+    </p>
 
     <h2>Operational commands</h2>
 <pre><code>docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.yml ps
@@ -75,6 +105,11 @@ docker compose --env-file /opt/gfat-worker/env/.env.production -f compose.prod.y
     <p>Use a known-good Git revision, rebuild and restart the services.</p>
 <pre><code>git checkout &lt;known-good-commit&gt;
 ./scripts/deploy.sh /opt/gfat-worker/env/.env.production</code></pre>
+    <p>
+      A rollback only works cleanly if operational files are outside Git and the
+      product directories are mounted separately. That is why the production
+      layout keeps repository, environment and secrets in different paths.
+    </p>
   </main>
 </body>
 </html>

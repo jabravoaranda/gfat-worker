@@ -24,6 +24,12 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      This page is for a developer or operator who has just cloned the
+      repository and wants to know whether the basic pieces work. Start with
+      the tests that do not need Docker, then move to the container stack.
+    </p>
+
     <h2>Requirements</h2>
     <ul>
       <li>Python 3.11.</li>
@@ -31,24 +37,53 @@
       <li>Docker Desktop or Docker Engine with Compose.</li>
     </ul>
 
+    <div class="callout">
+      <p>
+        The repository uses <code>uv</code> for local Python checks. Runtime
+        dependencies used inside Docker still live in
+        <code>worker/requirements.txt</code>, because the worker image installs
+        them during the image build.
+      </p>
+    </div>
+
     <h2>Run fast tests</h2>
 <pre><code>uv run pytest -q</code></pre>
-    <p>These tests do not require Docker, NAS mounts, SCC credentials or real data.</p>
+    <p>
+      These tests check imports, task registration, API models and lightweight
+      behavior. They do not require Docker, NAS mounts, SCC credentials or real
+      data, so they should be the first check after most code changes.
+    </p>
+    <p>Expected result:</p>
+<pre><code>17 passed</code></pre>
 
     <h2>Run the Docker smoke test</h2>
 <pre><code>.\scripts\smoke_docker.ps1</code></pre>
     <p>
-      The smoke test starts Redis and the worker/API stack, queues
-      <code>tasks.misc.test_sum</code>, checks the result and removes the test stack.
+      This is a small end-to-end check. It starts Redis and the worker/API
+      stack, queues <code>tasks.misc.test_sum</code>, checks the result and
+      removes the test stack. It proves that Celery can receive work through
+      Redis and that the API can report the result.
+    </p>
+    <p>
+      It is deliberately not a full scientific validation: it does not mount
+      the NAS, does not contact SCC and does not process large LIDAR files.
     </p>
 
     <h2>Start the development stack</h2>
 <pre><code>docker compose up --build</code></pre>
-    <p>Open the API docs at:</p>
+    <p>
+      Use this when you want to interact with the API manually. After the stack
+      starts, open the automatically generated FastAPI documentation at:
+    </p>
 <pre><code>http://localhost:8000/docs</code></pre>
 
     <h2>Start the test stack</h2>
 <pre><code>docker compose -f docker-compose.test.yml up --build</code></pre>
+    <p>
+      The test compose file avoids clashing with the default development ports.
+      That is useful when you already have another API or Redis instance
+      running.
+    </p>
     <p>Default ports:</p>
     <table>
       <tr><th>Service</th><th>Port</th></tr>
@@ -57,8 +92,28 @@
       <tr><td>Flower</td><td><code>5555</code></td></tr>
     </table>
 
+    <h2>First task to try manually</h2>
+    <p>
+      Open <code>http://localhost:18000/docs</code> when using the test stack,
+      or <code>http://localhost:8000/docs</code> when using the default stack,
+      and submit:
+    </p>
+<pre><code>{
+  "task_name": "tasks.misc.test_sum",
+  "args": [5, 10],
+  "kwargs": {}
+}</code></pre>
+    <p>
+      A successful result should eventually contain <code>15</code>. If this
+      works, the API, broker and worker are talking to each other.
+    </p>
+
     <h2>Build this documentation locally</h2>
-    <p>No build step is required. Open <code>docs/index.html</code> directly in a browser.</p>
+    <p>
+      No build step is required. Open <code>docs/index.html</code> directly in
+      a browser. GitHub Pages publishes the same static files from
+      <code>docs/</code>.
+    </p>
   </main>
 </body>
 </html>

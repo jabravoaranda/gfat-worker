@@ -24,15 +24,34 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      The service separates three concerns: accepting task requests, storing
+      those requests until a worker can run them, and executing Python
+      processing code in a controlled environment.
+    </p>
+
     <h2>Runtime components</h2>
     <table>
       <tr><th>Component</th><th>Role</th></tr>
-      <tr><td>FastAPI</td><td>Queues tasks and exposes task state.</td></tr>
-      <tr><td>Celery worker</td><td>Runs Python task functions.</td></tr>
-      <tr><td>Celery Beat</td><td>Runs scheduled jobs when enabled.</td></tr>
-      <tr><td>Redis</td><td>Broker and result backend.</td></tr>
-      <tr><td>Flower</td><td>Optional Celery monitoring UI.</td></tr>
+      <tr><td>FastAPI</td><td>Receives HTTP requests, validates the task payload and asks Celery to queue the task.</td></tr>
+      <tr><td>Redis</td><td>Stores queued work and task results. It is the communication layer between the API and workers.</td></tr>
+      <tr><td>Celery worker</td><td>Imports the registered task modules and runs the Python functions in the container.</td></tr>
+      <tr><td>Celery Beat</td><td>Creates periodic tasks when scheduled operation is enabled.</td></tr>
+      <tr><td>Flower</td><td>Optional UI for inspecting Celery queues and task history during operation.</td></tr>
     </table>
+
+    <h2>Request lifecycle</h2>
+<pre><code>1. A user or script sends JSON to POST /task_queue.
+2. FastAPI validates the payload and calls Celery.
+3. Celery writes the task message to Redis.
+4. A worker reads the message, imports the task and executes it.
+5. Celery writes the state and result back to Redis.
+6. The user reads the state with GET /task_queue/{task_id}.</code></pre>
+
+    <p>
+      This design allows the HTTP request to return quickly. Long scientific
+      processing happens outside the API process, inside the worker.
+    </p>
 
     <h2>Repository structure</h2>
 <pre><code>worker/
@@ -58,6 +77,11 @@ compose.prod.yml     production compose file</code></pre>
       A new module such as <code>worker/tasks/mrr.py</code> must be added to
       this list as <code>tasks.mrr</code>.
     </p>
+    <p>
+      This explicit list is intentional. It keeps task discovery predictable in
+      Docker and in CI. If a task file exists but is not registered here, it will
+      not be available through the API.
+    </p>
 
     <h2>Production layout</h2>
     <p>
@@ -65,6 +89,11 @@ compose.prod.yml     production compose file</code></pre>
       separate services built from the same image. Redis persists data in a
       Docker volume. Flower is optional and only starts with the <code>ops</code>
       profile.
+    </p>
+    <p>
+      The API and worker are separate services because they have different
+      operational behavior. The API should stay responsive; the worker may be
+      busy for longer periods while processing data.
     </p>
 
     <h2>Data paths</h2>
@@ -81,6 +110,15 @@ compose.prod.yml     production compose file</code></pre>
       development dependencies go in <code>pyproject.toml</code>. Scientific
       packages needed by tasks must be installed in the worker image.
     </p>
+
+    <div class="note">
+      <p>
+        If a task works locally but fails in Docker, first check whether the
+        dependency was added to <code>worker/requirements.txt</code>. Installing
+        something only in the local <code>uv</code> environment does not make it
+        available inside the worker container.
+      </p>
+    </div>
   </main>
 </body>
 </html>

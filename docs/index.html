@@ -37,7 +37,14 @@
   <main class="wrap">
     <section class="feature-band">
       <section class="feature-copy">
-        <h2>What the service does</h2>
+        <h2>Why this service exists</h2>
+        <p>
+          GFAT processing is not only a set of Python scripts. In operation it
+          needs a repeatable way to receive a request, run the right scientific
+          code in the right environment, keep track of the execution, and write
+          products to known locations. This repository packages that execution
+          layer.
+        </p>
         <ul>
           <li>Exposes a generic API for queuing registered Celery tasks.</li>
           <li>Runs scheduled operational jobs through Celery Beat.</li>
@@ -47,7 +54,7 @@
         </ul>
       </section>
       <section class="diagram">
-<pre>Operator/API
+<pre>Operator or schedule
     |
     v
  FastAPI ----> Redis <---- Flower
@@ -61,13 +68,13 @@
 
     <section class="grid two-up">
       <section class="card">
-        <h2>Documentation map</h2>
-        <ul>
-          <li><a href="getting-started.html">Getting started</a>: local setup and first checks.</li>
-          <li><a href="architecture.html">Architecture</a>: containers, modules and runtime boundaries.</li>
-          <li><a href="api.html">API usage</a>: queue tasks and inspect results.</li>
-          <li><a href="adding-tasks.html">Adding tasks</a>: integrate packages such as <code>mrrpropy</code> or <code>dcrpy</code>.</li>
-          <li><a href="deployment.html">Deployment</a>: CPD deployment and update flow.</li>
+        <h2>Read this in order</h2>
+        <ul class="section-list">
+          <li><a href="getting-started.html">Getting started</a>: install the local tools, run the fast tests and start the API.</li>
+          <li><a href="architecture.html">Architecture</a>: understand which container owns each responsibility.</li>
+          <li><a href="api.html">API usage</a>: submit a task, read its state and interpret results.</li>
+          <li><a href="adding-tasks.html">Adding tasks</a>: add a module for <code>mrrpropy</code>, <code>dcrpy</code> or another package.</li>
+          <li><a href="deployment.html">Deployment</a>: run and update the service on the CPD node.</li>
         </ul>
       </section>
       <section class="card">
@@ -80,13 +87,22 @@
         <p><a href="api.html#diagnostic-task">Run the backend diagnostic task</a></p>
       </section>
       <section class="card">
-        <h2>Production model</h2>
+        <h2>Operational model</h2>
         <p>
           Production uses <code>compose.prod.yml</code> with separate API,
           worker and Redis services. Secrets and local paths live outside Git
           in <code>.env.production</code> and <code>info_scc_user.yml</code>.
         </p>
         <p><a href="deployment.html">Open deployment guide</a></p>
+      </section>
+      <section class="card">
+        <h2>What is not in Git</h2>
+        <p>
+          Real RAW files, generated products, SCC credentials and local server
+          configuration are intentionally excluded from the repository. The code
+          and Docker definitions are versioned; operational data and secrets are
+          mounted at runtime.
+        </p>
       </section>
     </section>
   </main>

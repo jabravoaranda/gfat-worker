@@ -24,6 +24,12 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      The API is intentionally generic. It does not expose one endpoint per
+      scientific product. Instead, the client sends the Celery task name plus
+      positional and keyword arguments.
+    </p>
+
     <h2>Endpoints</h2>
     <table>
       <tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
@@ -35,6 +41,12 @@
     </table>
 
     <h2>Queue request</h2>
+    <p>
+      Every task submission uses the same shape. <code>task_name</code> must
+      match a registered Celery task. <code>args</code> is a JSON array for
+      positional arguments, and <code>kwargs</code> is a JSON object for named
+      arguments.
+    </p>
 <pre><code>{
   "task_name": "tasks.misc.test_sum",
   "args": [5, 10],
@@ -45,8 +57,26 @@
 <pre><code>curl -fsS -X POST http://127.0.0.1:8000/task_queue \
   -H "Content-Type: application/json" \
   -d '{"task_name":"tasks.misc.test_sum","args":[5,10],"kwargs":{}}'</code></pre>
+    <p>
+      The response contains a task id. Use that id with
+      <code>GET /task_queue/{task_id}</code> until the task is finished.
+    </p>
+
+    <h2>How to read task states</h2>
+    <table>
+      <tr><th>State</th><th>Meaning</th></tr>
+      <tr><td><code>PENDING</code></td><td>The task is waiting, unknown, or the worker has not reported progress yet.</td></tr>
+      <tr><td><code>STARTED</code></td><td>The worker has started executing the task.</td></tr>
+      <tr><td><code>SUCCESS</code></td><td>The task finished and the result field should contain the returned value.</td></tr>
+      <tr><td><code>FAILURE</code></td><td>The task raised an exception. Inspect the error and worker logs.</td></tr>
+    </table>
 
     <h2 id="diagnostic-task">Diagnostic task</h2>
+    <p>
+      Use this before running real LIDAR tasks. It verifies whether the worker
+      can import <code>atmolidarpy</code> as <code>lidarpy</code> and whether
+      known LIDAR systems are visible.
+    </p>
 <pre><code>{
   "task_name": "tasks.misc.lidar_backend_status",
   "args": [],
@@ -55,6 +85,11 @@
     <p>Expected backend result includes <code>"backend": "lidarpy"</code>.</p>
 
     <h2>LIDAR examples</h2>
+    <p>
+      These examples assume that the corresponding RAW data exists in the
+      mounted RAW path and that output paths are writable from the worker
+      container.
+    </p>
     <h3>Convert RAW to NetCDF</h3>
 <pre><code>{
   "task_name": "tasks.lidar.task_nc_convert",
@@ -70,6 +105,10 @@
 }</code></pre>
 
     <h3>Convert to SCC NetCDF</h3>
+    <p>
+      SCC conversion also needs the SCC configuration mounted at
+      <code>/run/secrets/info_scc_user.yml</code>. Keep that file outside Git.
+    </p>
 <pre><code>{
   "task_name": "tasks.lidar.task_convert_scc",
   "args": ["alhambra", 783, "11:30:00", "12:30:00", 20.0, 1013.25, "2024-09-09"],
@@ -85,6 +124,14 @@
       A function <code>dcr_backend_status</code> in <code>worker/tasks/dcr.py</code>
       is queued as <code>tasks.dcr.dcr_backend_status</code>.
     </p>
+
+    <div class="callout">
+      <p>
+        For operational clients, prefer storing the exact JSON payloads used for
+        recurring jobs. That makes failures easier to reproduce from the API
+        documentation or from a terminal.
+      </p>
+    </div>
   </main>
 </body>
 </html>

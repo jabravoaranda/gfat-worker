@@ -28,6 +28,13 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      A task is the boundary between the generic worker infrastructure and a
+      specific scientific package. The goal is to keep each module small,
+      explicit and testable, while leaving heavy processing inside the package
+      that already knows the domain.
+    </p>
+
     <h2>Implementation checklist</h2>
     <ol>
       <li>Add the runtime dependency to <code>worker/requirements.txt</code>.</li>
@@ -45,8 +52,18 @@ dcrpy==0.1.0</code></pre>
       Pin production versions. Do not install packages dynamically every time
       the container starts.
     </p>
+    <p>
+      Use <code>pyproject.toml</code> for development-only tooling such as
+      <code>pytest</code>. Use <code>worker/requirements.txt</code> for anything
+      the Docker worker must import at runtime.
+    </p>
 
     <h2>2. Create the task module</h2>
+    <p>
+      Put tasks under <code>worker/tasks/</code>. Keep the task function focused
+      on orchestration: parse arguments, call the scientific library, collect
+      outputs and return a structured result.
+    </p>
 <pre><code># worker/tasks/mrr.py
 from celery import shared_task
 
@@ -62,6 +79,10 @@ def mrr_backend_status():
 
     <p>The public Celery task name is:</p>
 <pre><code>tasks.mrr.mrr_backend_status</code></pre>
+    <p>
+      This name is what API clients will send in <code>task_name</code>. Keep it
+      stable once other scripts or operators depend on it.
+    </p>
 
     <h2>3. Register the module</h2>
 <pre><code># worker/app.py
@@ -72,6 +93,11 @@ app.autodiscover_tasks([
 ], force=True)</code></pre>
 
     <h2>4. Prefer backend adapters for optional packages</h2>
+    <p>
+      A small backend adapter gives clearer errors when a package is missing.
+      It also gives you one place to handle import-name differences, version
+      checks or future compatibility logic.
+    </p>
 <pre><code># worker/mrr_backend.py
 try:
     import mrrpropy
@@ -83,6 +109,11 @@ except ImportError:
         raise RuntimeError("MRR processing requires the 'mrrpropy' distribution.")</code></pre>
 
     <h2>5. Add tests</h2>
+    <p>
+      Start with fast tests that do not need Docker. They should confirm that
+      the task is registered and that the backend diagnostic gives a useful
+      response. Add heavier tests later for real files and CPD mounts.
+    </p>
 <pre><code># tests/test_registered_tasks.py
 expected_tasks = {
     "tasks.misc.test_sum",
@@ -93,6 +124,11 @@ expected_tasks = {
 <pre><code>uv run pytest -q</code></pre>
 
     <h2>6. Return structured results</h2>
+    <p>
+      Structured results are easier to show through the API, compare in tests
+      and consume from future dashboards. Include enough information for an
+      operator to know what happened without opening the worker logs.
+    </p>
 <pre><code>return {
     "status": "ok",
     "message": "MRR product created.",
@@ -116,6 +152,30 @@ expected_tasks = {
       <li>whether it contacts external services</li>
       <li>example JSON payload for <code>/task_queue</code></li>
     </ul>
+
+    <h2>Recommended shape for a real task</h2>
+<pre><code>@shared_task
+def create_daily_mrr_product(site: str, date: str):
+    # 1. Resolve input and output paths from configured mounts.
+    # 2. Validate that the expected input files exist.
+    # 3. Call mrrpropy with explicit arguments.
+    # 4. Write products under /mnt/PRODUCTS/UGR.
+    # 5. Return a structured summary.
+    return {
+        "status": "ok",
+        "site": site,
+        "date": date,
+        "created_files": [],
+        "errors": [],
+    }</code></pre>
+
+    <div class="note">
+      <p>
+        Do not put site-specific secrets, absolute CPD paths or test data files
+        in the task module. Pass them through environment variables, mounted
+        paths or external config files.
+      </p>
+    </div>
   </main>
 </body>
 </html>

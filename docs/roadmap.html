@@ -28,6 +28,12 @@
   </header>
 
   <main class="wrap prose">
+    <p class="page-intro">
+      The roadmap is not a wishlist. It is the place to record what must become
+      more reliable before the worker is used more broadly or before new
+      processing modules are added.
+    </p>
+
     <h2>Done baseline</h2>
     <ul>
       <li>Repository hygiene: ignored caches, local data and secrets.</li>
@@ -48,6 +54,18 @@
       <tr><td>New modules</td><td>Use the same task pattern for <code>mrrpropy</code>, <code>dcrpy</code> and future processing libraries.</td></tr>
     </table>
 
+    <h2>How to decide the next task</h2>
+    <p>
+      Prefer work that reduces operational uncertainty. A small test or a clear
+      deployment check is usually more valuable than adding a new feature that
+      cannot be verified on the service node.
+    </p>
+    <ul>
+      <li>If a failure would stop daily operation, document and test it first.</li>
+      <li>If a manual step is repeated, move it into a script or checklist.</li>
+      <li>If a new package is added, include a backend diagnostic task before adding heavy processing tasks.</li>
+    </ul>
+
     <h2>Testing strategy</h2>
     <ul>
       <li>Fast tests without Docker for imports, adapters, task registration and API models.</li>
@@ -55,6 +73,11 @@
       <li>Real-data tests for LIDAR/SCC workflows, kept separate from regular CI because of size and credentials.</li>
       <li>Deployment checks on the CPD node after every operational update.</li>
     </ul>
+    <p>
+      Real-data tests should remain separate from the fast CI path. They are
+      still important, but they need explicit data management, expected outputs
+      and a policy for credentials or external services such as SCC.
+    </p>
 
     <h2>How to update the roadmap</h2>
     <p>
