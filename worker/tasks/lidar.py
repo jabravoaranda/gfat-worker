@@ -771,12 +771,24 @@ def task_send_to_scc(
                 track_files.append(f"{measurement_id}=found")
                 continue
 
-            scc_obj.login(SCC_SERVER_SETTINGS["website_credentials"])
-            measurement_id_from_server = scc_obj.upload_file(
-                filename=file_, system_id=scc_id
-            )
+            try:
+                scc_obj.login(SCC_SERVER_SETTINGS["website_credentials"])
+                measurement_id_from_server = scc_obj.upload_file(
+                    filename=file_, system_id=scc_id
+                )
+            except Exception as exc:
+                logger.exception(f"Error uploading {measurement_id}.nc to SCC.")
+                track_files.append(
+                    f"{measurement_id}=upload_error:{type(exc).__name__}:"
+                    f"{exc}"
+                )
+                continue
+            finally:
+                try:
+                    scc_obj.logout()
+                except Exception:
+                    logger.warning("Could not log out from SCC cleanly.")
 
-            scc_obj.logout()
             if not measurement_id_from_server:
                 logger.warning(f"Error uploading {measurement_id}.nc to SCC.")
                 track_files.append(f"{measurement_id}=error")
