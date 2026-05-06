@@ -1,6 +1,7 @@
 from celery import shared_task
 
 import os
+import inspect
 from time import sleep
 from pathlib import Path
 from typing import Any, Tuple
@@ -63,6 +64,33 @@ INFO_SCC_CONFIG_PATH = Path(
 )
 
 logger.info(f"Using {LIDAR_BACKEND} as lidar processing backend.")
+
+
+def measurement_to_nc(measurement: Measurement, target_date: date, output_dir: Path):
+    """Convert a measurement to NetCDF across supported lidarpy signatures."""
+    to_nc_parameters = inspect.signature(measurement.to_nc).parameters
+    kwargs: dict[str, Any] = {"output_dir": output_dir}
+
+    if "target_date" in to_nc_parameters:
+        kwargs["target_date"] = target_date
+    elif "by_dates" in to_nc_parameters:
+        kwargs["by_dates"] = True
+
+    return measurement.to_nc(**kwargs)
+
+
+def cleanup_measurement_tmp(measurement: Measurement) -> None:
+    """Remove temporary extraction data without relying on lidarpy internals."""
+    remove_tmp = getattr(measurement, "remove_tmp_unzipped_dir", None)
+    if remove_tmp is None:
+        return
+
+    remove_tmp()
+    measurement_path = getattr(measurement, "path", None)
+    if measurement_path is not None:
+        logger.info(f"Temporary files removed for {Path(measurement_path).name}.")
+    else:
+        logger.info("Temporary files removed for measurement.")
 
 
 def parse_time_interval(ini_interval: str, end_interval: str) -> Tuple[time, time]:
@@ -155,18 +183,13 @@ def task_nc_convert(
                 lidar_name=lidar.value, glob=date_raw_dir.glob(f"{measurement_type}*"))
             for measurement in measurements:
                 logger.info(f"Converting {measurement.path.name} to nc.")
-                measurement.to_nc(target_date=target_date,
-                                  output_dir=products_dir)
-                measurement.remove_tmp_unzipped_dir()
-                logger.info(
-                    f"Temp directory {measurement.unzipped_path.name} removed.")
+                measurement_to_nc(measurement, target_date, products_dir)
+                cleanup_measurement_tmp(measurement)
                 if measurement.has_linked_dc:
                     logger.info(
                         f"Converting {measurement.dc.path.name} to nc.")
-                    measurement.dc.to_nc(output_dir=products_dir)
-                    measurement.dc.remove_tmp_unzipped_dir()
-                    logger.info(
-                        f"Temp directory {measurement.dc.unzipped_path.name} removed.")
+                    measurement_to_nc(measurement.dc, target_date, products_dir)
+                    cleanup_measurement_tmp(measurement.dc)
         else:
             logger.info(
                 f"{target_date} directory not found in ../{lidar.value}.")
@@ -188,18 +211,13 @@ def task_nc_convert(
                 lidar_name=lidar.value, glob=date_raw_dir.glob("RS*"))
             for measurement in measurements:
                 logger.info(f"Converting {measurement.path.name} to nc.")
-                measurement.to_nc(target_date=target_date,
-                                  output_dir=products_dir)
-                measurement.remove_tmp_unzipped_dir()
-                logger.info(
-                    f"Temp directory {measurement.unzipped_path.name} removed.")
+                measurement_to_nc(measurement, target_date, products_dir)
+                cleanup_measurement_tmp(measurement)
                 if measurement.has_linked_dc:
                     logger.info(
                         f"Converting {measurement.dc.path.name} to nc.")
-                    measurement.dc.to_nc(output_dir=products_dir)
-                    measurement.dc.remove_tmp_unzipped_dir()
-                    logger.info(
-                        f"Temp directory {measurement.dc.unzipped_path.name} removed.")
+                    measurement_to_nc(measurement.dc, target_date, products_dir)
+                    cleanup_measurement_tmp(measurement.dc)
 
         return f"nc files created in ../{lidar.value}/1a/{target_date.year}/{target_date.month:02}/{target_date.day:02}."
 
